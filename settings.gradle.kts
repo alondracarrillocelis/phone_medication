@@ -1,5 +1,6 @@
 pluginManagement {
     repositories {
+        gradlePluginPortal() // 👈 Esto debe ir antes
         google {
             content {
                 includeGroupByRegex("com\\.android.*")
@@ -8,9 +9,9 @@ pluginManagement {
             }
         }
         mavenCentral()
-        gradlePluginPortal()
     }
 }
+
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
@@ -21,4 +22,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "phone_medicatios"
 include(":app")
- 
