@@ -1,12 +1,12 @@
 package com.example.phone_medicatios.screen
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,64 +19,33 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.compose.foundation.BorderStroke
 import com.example.phone_medicatios.R
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.phone_medicatios.viewmodel.ReminderViewModel
 import com.example.phone_medicatios.navigation.Screen
 import com.example.phone_medicatios.components.StepItem
-import kotlinx.coroutines.delay
-import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReminderProgramScreen(navController: NavController, viewModel: ReminderViewModel) {
-    val context = LocalContext.current
+fun ReminderScheduleScreen(navController: NavController, viewModel: ReminderViewModel) {
     val purple = Color(0xFFB295C7)
     
     val formData by viewModel.formData.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val successMessage by viewModel.successMessage.collectAsState()
-    val shouldNavigateToDashboard by viewModel.shouldNavigateToDashboard.collectAsState()
 
-    // Logging para debugging
-    LaunchedEffect(formData) {
-        android.util.Log.d("ReminderProgramScreen", "FormData actualizado:")
-        android.util.Log.d("ReminderProgramScreen", "- Medicamento: '${formData.medication}'")
-        android.util.Log.d("ReminderProgramScreen", "- Dosis: '${formData.dosage}'")
-        android.util.Log.d("ReminderProgramScreen", "- Primera dosis: '${formData.firstDoseTime}'")
-        android.util.Log.d("ReminderProgramScreen", "- Hora dosis: '${formData.doseTime}'")
-    }
+    var frecuenciaExpanded by remember { mutableStateOf(false) }
+    val frecuenciaOptions = listOf("Diariamente", "Días Seleccionados", "Cíclicamente")
 
-    // Información desde el ViewModel
-    val medicamento = formData.medication
-    val dosis = formData.dosage
-    val horarios = when (formData.frequency) {
-        "Diariamente" -> listOf(
-            formData.firstDoseTime to "1 ${formData.type.lowercase()}",
-            formData.doseTime to "1 ${formData.type.lowercase()}"
-        )
-        else -> listOf(formData.firstDoseTime to "1 ${formData.type.lowercase()}")
-    }
-    val iconos = listOf(R.drawable.ic_sun, R.drawable.ic_moon)
+    var periodoExpanded by remember { mutableStateOf(false) }
+    val opcionesHora = listOf("6:00 a.m.", "7:00 a.m.", "8:00 a.m.", "9:00 a.m.", "12:00 p.m.", "6:00 p.m.")
 
     // Auto-ocultar mensajes de éxito después de unos segundos
     LaunchedEffect(successMessage) {
         if (successMessage != null) {
-            delay(3000) // 3 segundos
+            kotlinx.coroutines.delay(3000) // 3 segundos
             viewModel.clearMessages()
-        }
-    }
-
-    // Navegación automática al dashboard después del guardado exitoso
-    LaunchedEffect(shouldNavigateToDashboard) {
-        if (shouldNavigateToDashboard) {
-            delay(2000) // Esperar 2 segundos para que el usuario vea el mensaje de éxito
-            viewModel.resetNavigation()
-            navController.navigate(Screen.Dashboard.route) {
-                popUpTo(0) { inclusive = true }
-            }
         }
     }
 
@@ -114,19 +83,19 @@ fun ReminderProgramScreen(navController: NavController, viewModel: ReminderViewM
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
                         Text(
-                            "Confirmar Recordatorio", 
+                            "Configurar Horario", 
                             fontSize = 26.sp, 
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            "Revisa y confirma la información", 
+                            "Define cuándo tomar tu medicamento", 
                             fontSize = 16.sp, 
                             color = Color.Gray
                         )
                     }
                 }
 
-                // Pasos
+                // Pasos centrados
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -135,11 +104,11 @@ fun ReminderProgramScreen(navController: NavController, viewModel: ReminderViewM
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     StepItem("1", "Elegir\nMedicamento", purple, false)
-                    StepItem("2", "Configurar\nRecordatorio", purple, false)
-                    StepItem("3", "Programa\nFinal", purple, true)
+                    StepItem("2", "Configurar\nRecordatorio", purple, true)
+                    StepItem("3", "Programa\nFinal", purple, false)
                 }
 
-                // Nombre y dosis del medicamento
+                // Información del medicamento seleccionado
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = purple.copy(alpha = 0.05f)),
@@ -149,25 +118,25 @@ fun ReminderProgramScreen(navController: NavController, viewModel: ReminderViewM
                         modifier = Modifier.padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_medication),
-                        contentDescription = null,
-                        tint = purple,
-                        modifier = Modifier
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_medication),
+                            contentDescription = null,
+                            tint = purple,
+                            modifier = Modifier
                                 .size(32.dp)
-                            .clip(CircleShape)
+                                .clip(CircleShape)
                                 .background(purple.copy(alpha = 0.1f))
-                            .padding(6.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
+                                .padding(6.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
                             Text(
-                                medicamento, 
+                                formData.medication.ifBlank { "Medicamento" }, 
                                 fontSize = 18.sp, 
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                dosis, 
+                                "${formData.dosage}${formData.unit} - ${formData.type}", 
                                 fontSize = 14.sp, 
                                 color = Color.Gray
                             )
@@ -175,92 +144,137 @@ fun ReminderProgramScreen(navController: NavController, viewModel: ReminderViewM
                     }
                 }
 
-                // Mensaje informativo
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    colors = CardDefaults.cardColors(containerColor = purple.copy(alpha = 0.1f)),
-                    shape = RoundedCornerShape(12.dp)
+                // Campo de Frecuencia
+                ExposedDropdownMenuBox(
+                    expanded = frecuenciaExpanded,
+                    onExpandedChange = { frecuenciaExpanded = !frecuenciaExpanded }
                 ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    OutlinedTextField(
+                        value = formData.frequency,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { 
+                            Text(
+                                "¿Cada cuándo lo debes tomar?", 
+                                fontSize = 16.sp
+                            ) 
+                        },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = frecuenciaExpanded)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = purple,
+                            unfocusedBorderColor = Color.Gray.copy(alpha = 0.5f)
+                        )
+                    )
+                    ExposedDropdownMenu(
+                        expanded = frecuenciaExpanded,
+                        onDismissRequest = { frecuenciaExpanded = false }
                     ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_medication),
-                            contentDescription = null,
-                            tint = purple,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Revisa la información y confirma para guardar el recordatorio",
-                            color = purple,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium
-                        )
+                        frecuenciaOptions.forEach { option ->
+                            DropdownMenuItem(
+                                text = { 
+                                    Text(
+                                        option, 
+                                        fontSize = 16.sp
+                                    ) 
+                                },
+                                onClick = {
+                                    viewModel.updateFormData(formData.copy(frequency = option))
+                                    frecuenciaExpanded = false
+                                }
+                            )
+                        }
                     }
                 }
 
-                // Horarios configurados
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .border(2.dp, purple.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
+                // Horarios
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text(
-                        "📅 Horarios Programados",
-                        fontSize = 18.sp,
+                        "Horarios de toma", 
+                        fontSize = 18.sp, 
                         fontWeight = FontWeight.SemiBold,
                         color = purple
                     )
                     
-                    horarios.forEachIndexed { index, (hora, cantidad) ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    painter = painterResource(id = iconos.getOrElse(index) { R.drawable.ic_clock }),
-                                    contentDescription = null,
-                                    tint = purple,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Hora de Dosis (editable)
+                    OutlinedTextField(
+                        value = formData.doseTime,
+                        onValueChange = { 
+                            viewModel.updateFormData(formData.copy(doseTime = it))
+                        },
+                            label = { 
                                 Text(
-                                    hora, 
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_pill),
-                                    contentDescription = null,
-                                    tint = purple,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
+                                    "Hora de dosis", 
+                                    fontSize = 16.sp
+                                ) 
+                            },
+                            placeholder = { 
                                 Text(
-                                    cantidad, 
-                                    fontSize = 16.sp, 
-                                    color = purple,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-                        
-                        if (index < horarios.size - 1) {
-                            Divider(
-                                color = purple.copy(alpha = 0.2f),
-                                thickness = 1.dp,
-                                modifier = Modifier.padding(vertical = 8.dp)
+                                    "Ej: 12:00 p.m.", 
+                                    fontSize = 14.sp
+                                ) 
+                            },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = purple,
+                                unfocusedBorderColor = Color.Gray.copy(alpha = 0.5f)
                             )
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    // Selección de 1ra Dosis
+                    ExposedDropdownMenuBox(
+                        expanded = periodoExpanded,
+                        onExpandedChange = { periodoExpanded = !periodoExpanded },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        OutlinedTextField(
+                            value = formData.firstDoseTime,
+                            onValueChange = {},
+                            readOnly = true,
+                                label = { 
+                                    Text(
+                                        "1ra Dosis", 
+                                        fontSize = 16.sp
+                                    ) 
+                                },
+                            trailingIcon = {
+                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = periodoExpanded)
+                            },
+                                modifier = Modifier.menuAnchor(),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = purple,
+                                    unfocusedBorderColor = Color.Gray.copy(alpha = 0.5f)
+                                )
+                        )
+                        ExposedDropdownMenu(
+                            expanded = periodoExpanded,
+                            onDismissRequest = { periodoExpanded = false }
+                        ) {
+                            opcionesHora.forEach { hora ->
+                                DropdownMenuItem(
+                                        text = { 
+                                            Text(
+                                                hora, 
+                                                fontSize = 16.sp
+                                            ) 
+                                        },
+                                    onClick = {
+                                        viewModel.updateFormData(formData.copy(firstDoseTime = hora))
+                                        periodoExpanded = false
+                                    }
+                                )
+                                }
+                            }
                         }
                     }
                 }
@@ -322,8 +336,7 @@ fun ReminderProgramScreen(navController: NavController, viewModel: ReminderViewM
                         },
                         border = BorderStroke(2.dp, purple),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = purple),
-                        modifier = Modifier.weight(1f),
-                        enabled = !isLoading
+                        modifier = Modifier.weight(1f)
                     ) {
                         Text(
                             "Atrás", 
@@ -335,34 +348,25 @@ fun ReminderProgramScreen(navController: NavController, viewModel: ReminderViewM
                     Spacer(modifier = Modifier.width(16.dp))
                     
                     Button(
-                        onClick = { 
+                        onClick = {
                             viewModel.clearMessages()
-                            viewModel.saveReminder(context)
+                            if (viewModel.validateScheduleForm()) {
+                            navController.navigate(Screen.ReminderProgram.route)
+                            }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = purple),
-                        enabled = !isLoading,
+                        enabled = !isLoading && formData.frequency.isNotBlank() && formData.firstDoseTime.isNotBlank(),
                         modifier = Modifier.weight(1f)
                     ) {
                         if (isLoading) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(16.dp),
-                                    color = Color.White,
-                                    strokeWidth = 2.dp
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    "Guardando...", 
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
                         } else {
                             Text(
-                                "Guardar", 
+                                "Siguiente", 
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium
                             )
@@ -372,4 +376,4 @@ fun ReminderProgramScreen(navController: NavController, viewModel: ReminderViewM
             }
         }
     }
-}
+} 

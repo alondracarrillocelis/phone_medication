@@ -8,21 +8,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.phone_medicatios.R
 import com.example.phone_medicatios.navigation.Screen
 import kotlinx.coroutines.delay
 
 @Composable
 fun SplashScreen(navController: NavController) {
     LaunchedEffect(Unit) {
-        delay(2500)
+        delay(3000) // Aumentar el tiempo para mejor experiencia
         navController.navigate(Screen.Dashboard.route) {
-            popUpTo(Screen.Splash.route) { inclusive = true }
+            popUpTo(0) { inclusive = true }
         }
     }
 
@@ -40,28 +43,44 @@ fun SplashScreen(navController: NavController) {
                 shape = CircleShape,
                 color = Color.White,
                 modifier = Modifier
-                    .size(140.dp)
-                    .shadow(8.dp, CircleShape)
+                    .size(160.dp)
+                    .shadow(12.dp, CircleShape)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    HorizontalDivider(
-                        color = Color(0xFFB295C7),
-                        thickness = 6.dp,
-                        modifier = Modifier
-                            .width(60.dp)
-                            .padding(horizontal = 16.dp)
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_medication),
+                        contentDescription = "App Icon",
+                        tint = Color(0xFFB295C7),
+                        modifier = Modifier.size(80.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
             Text(
-                text = "MI DOSIS EN CAMINO",
+                text = "MI DOSIS",
                 color = Color.White,
-                fontSize = 24.sp,
+                fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
-                lineHeight = 26.sp
+                lineHeight = 36.sp
+            )
+            
+            Text(
+                text = "Recordatorios de Medicamentos",
+                color = Color.White.copy(alpha = 0.9f),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                lineHeight = 20.sp
+            )
+            
+            Spacer(modifier = Modifier.height(48.dp))
+            
+            // Indicador de carga
+            CircularProgressIndicator(
+                color = Color.White,
+                strokeWidth = 3.dp,
+                modifier = Modifier.size(32.dp)
             )
         }
     }
