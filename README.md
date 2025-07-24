@@ -1,55 +1,24 @@
-# Mi Dosis - App de Recordatorios de Medicamentos
+# 💊 Mi Dosis - App de Recordatorios de Medicamentos
 
-Una aplicación móvil desarrollada en Android con Jetpack Compose para ayudar a los usuarios a gestionar sus recordatorios de medicamentos de manera eficiente.
+Una aplicación móvil moderna para Android que te ayuda a recordar tomar tus medicamentos a tiempo. Desarrollada con las últimas tecnologías de Android.
 
 ## 🚀 Características Principales
 
-### ✅ Funcionalidades Implementadas
-
-- **Dashboard Principal**: Vista general con recordatorios del día, medicamentos registrados y calendario semanal
-- **Creación de Recordatorios**: Formulario de 3 pasos para configurar medicamentos
-- **Gestión de Horarios**: Configuración de frecuencias (diaria, cíclica, días seleccionados)
-- **Historial Completo**: Vista de todos los recordatorios creados con opción de eliminación
-- **Marcado de Completado**: Funcionalidad para marcar medicamentos como tomados
-- **Backend con Firebase**: Almacenamiento en tiempo real con Firestore
-- **Navegación Fluida**: Sistema de navegación entre pantallas optimizado
-
-### 🎨 Mejoras de Diseño
-
-- **Tamaños de Letra Optimizados**: Mejor legibilidad en todos los dispositivos
-- **Componentes Rediseñados**: Cards, botones y elementos visuales mejorados
-- **Experiencia de Usuario**: Navegación intuitiva y feedback visual
-- **Responsive Design**: Adaptable a diferentes tamaños de pantalla
-
-## 📱 Pantallas de la Aplicación
-
-### 1. Splash Screen
-- Pantalla de bienvenida con logo de la aplicación
-- Transición automática al dashboard
-
-### 2. Dashboard
-- Resumen de recordatorios del día
-- Calendario semanal interactivo
-- Lista de medicamentos registrados
-- Botón de acceso al historial
-- FAB para crear nuevo recordatorio
-
-### 3. Formulario de Recordatorio (3 Pasos)
-- **Paso 1**: Información del medicamento (nombre, dosis, tipo, unidad)
-- **Paso 2**: Configuración de horarios y frecuencia
-- **Paso 3**: Confirmación y guardado
-
-### 4. Historial
-- Lista completa de recordatorios
-- Opción de eliminación
-- Estado vacío con call-to-action
+- **📱 Interfaz moderna** con Material Design 3
+- **⏰ Recordatorios inteligentes** con horarios personalizables
+- **📊 Dashboard con estadísticas** en tiempo real
+- **📋 Historial completo** de medicamentos tomados
+- **🎯 Frecuencias flexibles** (diaria, días seleccionados, cíclica)
+- **🔔 Notificaciones** para no olvidar ninguna dosis
+- **💾 Almacenamiento local** con SQLite (Room Database)
+- **🔄 Funcionamiento offline** completo
 
 ## 🛠️ Tecnologías Utilizadas
 
 - **Android Studio**: IDE principal
 - **Jetpack Compose**: UI declarativa moderna
 - **Kotlin**: Lenguaje de programación
-- **Firebase Firestore**: Base de datos en tiempo real
+- **SQLite (Room Database)**: Base de datos local
 - **Material Design 3**: Sistema de diseño
 - **Navigation Compose**: Navegación entre pantallas
 - **ViewModel**: Gestión de estado de la UI
@@ -64,8 +33,13 @@ app/src/main/java/com/example/phone_medicatios/
 │   ├── CommonComponents.kt        # Componentes reutilizables
 │   └── StatusMessages.kt          # Mensajes de estado
 ├── data/
-│   ├── FirebaseRepository.kt      # Repositorio de datos
-│   └── Models.kt                  # Modelos de datos
+│   ├── SqliteRepository.kt        # Repositorio de datos SQLite
+│   ├── SimpleRepository.kt        # Repositorio alternativo
+│   ├── TestRepository.kt          # Repositorio para testing
+│   ├── Models.kt                  # Modelos de datos
+│   ├── entities/                  # Entidades de Room Database
+│   ├── dao/                       # Data Access Objects
+│   └── database/                  # Configuración de base de datos
 ├── navigation/
 │   └── AppNavigation.kt           # Configuración de navegación
 ├── screen/
@@ -73,6 +47,8 @@ app/src/main/java/com/example/phone_medicatios/
 │   ├── ReminderFormScreen.kt      # Formulario paso 1
 │   ├── ReminderScheduleScreen.kt  # Formulario paso 2
 │   ├── ReminderProgramScreen.kt   # Formulario paso 3
+│   ├── MedicationsScreen.kt       # Lista de medicamentos
+│   ├── RemindersScreen.kt         # Lista de recordatorios
 │   ├── HistoryScreen.kt           # Historial de recordatorios
 │   └── SplashScreen.kt            # Pantalla de bienvenida
 ├── theme/
@@ -84,53 +60,32 @@ app/src/main/java/com/example/phone_medicatios/
 
 ## 🔧 Configuración
 
-### ⚠️ IMPORTANTE: Problema de Firebase
+### ✅ **Ventajas de SQLite (Room Database)**
 
-**La aplicación se queda cargando al crear recordatorios** porque el archivo `google-services.json` actual contiene datos de ejemplo, no datos reales de Firebase.
-
-### Solución Temporal (Testing Local)
-
-Para probar la aplicación **SIN configurar Firebase**:
-
-1. Abre `ReminderViewModel.kt`
-2. Cambia la línea:
-   ```kotlin
-   private val repository = LocalRepository() // Para testing local
-   ```
-3. Ejecuta la aplicación - funcionará con almacenamiento local
-
-### Solución Permanente (Con Firebase)
-
-Para usar Firebase real:
-
-1. **Configura Firebase** siguiendo las instrucciones en `FIREBASE_SETUP.md`
-2. En `ReminderViewModel.kt`, cambia a:
-   ```kotlin
-   private val repository = FirebaseRepository() // Para Firebase real
-   ```
+- **Sin dependencias externas** - Funciona completamente offline
+- **Más rápido** - Acceso local a datos
+- **Sin configuración** - No necesita servicios externos
+- **Menos complejidad** - No hay problemas de índices
+- **Privacidad** - Datos almacenados localmente
+- **Sin costos** - No hay límites de uso
 
 ### Requisitos Previos
 - Android Studio Arctic Fox o superior
 - Android SDK 24+
-- Cuenta de Firebase (opcional para testing local)
 
 ### Instalación
 1. Clona el repositorio
 2. Abre el proyecto en Android Studio
-3. **Para testing local**: Usa `LocalRepository()` (ya configurado)
-4. **Para Firebase real**: 
-   - Configura Firebase siguiendo `FIREBASE_SETUP.md`
-   - Cambia a `FirebaseRepository()`
-5. Sincroniza el proyecto con Gradle
-6. Ejecuta la aplicación
+3. Sincroniza el proyecto con Gradle
+4. Ejecuta la aplicación
 
 ## 🎯 Funcionalidades del Backend
 
-### Firebase Firestore
-- **Colecciones**:
-  - `medications`: Información de medicamentos
-  - `reminders`: Recordatorios configurados
-  - `reminder_schedules`: Horarios específicos
+### SQLite (Room Database)
+- **Entidades**:
+  - `MedicationEntity`: Información de medicamentos
+  - `ReminderEntity`: Recordatorios configurados
+  - `ReminderScheduleEntity`: Horarios específicos
 
 ### Operaciones Soportadas
 - ✅ Crear recordatorios
@@ -138,6 +93,7 @@ Para usar Firebase real:
 - ✅ Marcar como completado
 - ✅ Eliminar recordatorios
 - ✅ Cargar medicamentos registrados
+- ✅ Estadísticas en tiempo real
 
 ## 🎨 Paleta de Colores
 
@@ -158,18 +114,18 @@ Para usar Firebase real:
 - [ ] Autenticación de usuarios
 - [ ] Sincronización entre dispositivos
 - [ ] Estadísticas de adherencia
-- [ ] Modo offline
 - [ ] Exportación de datos
 - [ ] Temas personalizables
+- [ ] Backup automático
 
 ## 📄 Licencia
 
 Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
 
-## 🤝 Contribuciones
+## 🤝 Contribuir
 
-Las contribuciones son bienvenidas. Por favor, abre un issue o pull request para sugerir mejoras.
+Las contribuciones son bienvenidas. Por favor, abre un issue o un pull request.
 
 ---
 
-**Desarrollado con ❤️ para mejorar la salud de las personas** 
+**¡Disfruta usando Mi Dosis para mantener un mejor control de tus medicamentos! 💊✨** 
