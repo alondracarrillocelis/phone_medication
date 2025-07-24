@@ -45,19 +45,19 @@ fun ReminderProgramScreen(navController: NavController, viewModel: ReminderViewM
         android.util.Log.d("ReminderProgramScreen", "FormData actualizado:")
         android.util.Log.d("ReminderProgramScreen", "- Medicamento: '${formData.medication}'")
         android.util.Log.d("ReminderProgramScreen", "- Dosis: '${formData.dosage}'")
-        android.util.Log.d("ReminderProgramScreen", "- Primera dosis: '${formData.firstDoseTime}'")
-        android.util.Log.d("ReminderProgramScreen", "- Hora dosis: '${formData.doseTime}'")
+        android.util.Log.d("ReminderProgramScreen", "- Hora de toma: '${formData.firstDoseTime}'")
     }
 
     // Información desde el ViewModel
     val medicamento = formData.medication
     val dosis = formData.dosage
-    val horarios = when (formData.frequency) {
-        "Diariamente" -> listOf(
+    val horarios = if (formData.doseTime.isNotBlank()) {
+        listOf(
             formData.firstDoseTime to "1 ${formData.type.lowercase()}",
             formData.doseTime to "1 ${formData.type.lowercase()}"
         )
-        else -> listOf(formData.firstDoseTime to "1 ${formData.type.lowercase()}")
+    } else {
+        listOf(formData.firstDoseTime to "1 ${formData.type.lowercase()}")
     }
     val iconos = listOf(R.drawable.ic_sun, R.drawable.ic_moon)
 
@@ -217,6 +217,29 @@ fun ReminderProgramScreen(navController: NavController, viewModel: ReminderViewM
                         fontWeight = FontWeight.SemiBold,
                         color = purple
                     )
+                    
+                    // Información de frecuencia
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_clock),
+                            contentDescription = null,
+                            tint = purple,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            when (formData.frequency) {
+                                "Cíclicamente" -> "Frecuencia: ${formData.frequency} (Cada ${formData.cycleWeeks} semanas)"
+                                "Días Seleccionados" -> "Frecuencia: ${formData.frequency} (${formData.selectedDays.joinToString(", ")})"
+                                else -> "Frecuencia: ${formData.frequency}"
+                            },
+                            fontSize = 14.sp,
+                            color = Color.Gray
+                        )
+                    }
                     
                     horarios.forEachIndexed { index, (hora, cantidad) ->
                         Row(

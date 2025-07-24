@@ -19,7 +19,7 @@ import com.example.phone_medicatios.data.entities.ReminderScheduleEntity
         ReminderEntity::class,
         ReminderScheduleEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(DateConverter::class)

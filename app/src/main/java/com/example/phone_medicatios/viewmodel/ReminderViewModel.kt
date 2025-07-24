@@ -61,6 +61,8 @@ class ReminderViewModel(application: android.app.Application) : androidx.lifecyc
     // Usar un ID fijo para que los datos persistan entre navegaciones
     private val userId = "user_default"
 
+    // Función de cálculo automático eliminada - ahora es manual
+
     init {
         Log.d("ReminderViewModel", "Inicializando ViewModel con userId: $userId")
         startDataObservers()
@@ -70,9 +72,10 @@ class ReminderViewModel(application: android.app.Application) : androidx.lifecyc
         Log.d("ReminderViewModel", "Actualizando formData:")
         Log.d("ReminderViewModel", "- Medicamento: '${newData.medication}'")
         Log.d("ReminderViewModel", "- Dosis: '${newData.dosage}'")
-        Log.d("ReminderViewModel", "- Primera dosis: '${newData.firstDoseTime}'")
-        Log.d("ReminderViewModel", "- Hora dosis: '${newData.doseTime}'")
+        Log.d("ReminderViewModel", "- Hora de toma: '${newData.firstDoseTime}'")
+        Log.d("ReminderViewModel", "- Segunda dosis: '${newData.doseTime}'")
         
+        // Actualizar directamente sin cálculo automático
         _formData.value = newData
         // Limpiar errores cuando el usuario modifica el formulario
         _errorMessage.value = null
@@ -104,17 +107,30 @@ class ReminderViewModel(application: android.app.Application) : androidx.lifecyc
         
         Log.d("ReminderViewModel", "Validando formulario de horarios:")
         Log.d("ReminderViewModel", "- Primera dosis: '${data.firstDoseTime}'")
-        Log.d("ReminderViewModel", "- Hora dosis: '${data.doseTime}'")
+        Log.d("ReminderViewModel", "- Horas entre dosis: '${data.hoursBetweenDoses}'")
+        Log.d("ReminderViewModel", "- Días seleccionados: '${data.selectedDays}'")
         
         if (data.firstDoseTime.isBlank()) {
             Log.d("ReminderViewModel", "Error: Primera dosis está vacía")
-            _errorMessage.value = "Por favor selecciona la hora de la primera dosis"
+            _errorMessage.value = "Por favor selecciona la primera dosis"
             return false
         }
         
         if (data.doseTime.isBlank()) {
-            Log.d("ReminderViewModel", "Error: Hora dosis está vacía")
-            _errorMessage.value = "Por favor ingresa la hora de la dosis"
+            Log.d("ReminderViewModel", "Error: Segunda dosis está vacía")
+            _errorMessage.value = "Por favor ingresa la hora de la segunda dosis"
+            return false
+        }
+        
+        if (data.frequency == "Días Seleccionados" && data.selectedDays.isEmpty()) {
+            Log.d("ReminderViewModel", "Error: No hay días seleccionados")
+            _errorMessage.value = "Por favor selecciona al menos un día"
+            return false
+        }
+        
+        if (data.frequency == "Cíclicamente" && data.cycleWeeks.isBlank()) {
+            Log.d("ReminderViewModel", "Error: No hay ciclo seleccionado")
+            _errorMessage.value = "Por favor selecciona el ciclo de semanas"
             return false
         }
         
@@ -145,11 +161,19 @@ class ReminderViewModel(application: android.app.Application) : androidx.lifecyc
             return false
         }
         if (data.firstDoseTime.isBlank()) {
-            _errorMessage.value = "Por favor selecciona la hora de la primera dosis"
+            _errorMessage.value = "Por favor selecciona la primera dosis"
             return false
         }
         if (data.doseTime.isBlank()) {
-            _errorMessage.value = "Por favor ingresa la hora de la dosis"
+            _errorMessage.value = "Por favor ingresa la hora de la segunda dosis"
+            return false
+        }
+        if (data.frequency == "Días Seleccionados" && data.selectedDays.isEmpty()) {
+            _errorMessage.value = "Por favor selecciona al menos un día"
+            return false
+        }
+        if (data.frequency == "Cíclicamente" && data.cycleWeeks.isBlank()) {
+            _errorMessage.value = "Por favor selecciona el ciclo de semanas"
             return false
         }
         // Validar que no sean los valores por defecto

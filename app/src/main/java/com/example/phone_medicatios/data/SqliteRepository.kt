@@ -150,6 +150,9 @@ class SqliteRepository(context: Context) {
                 frequency = reminder.frequency,
                 firstDoseTime = reminder.firstDoseTime,
                 doseTime = reminder.doseTime,
+                hoursBetweenDoses = reminder.hoursBetweenDoses,
+                selectedDays = reminder.selectedDays,
+                cycleWeeks = reminder.cycleWeeks,
                 userId = reminder.userId,
                 createdAt = reminder.createdAt,
                 isActive = reminder.isActive,
@@ -179,8 +182,11 @@ class SqliteRepository(context: Context) {
                     unit = entity.unit,
                     type = entity.type,
                     frequency = entity.frequency,
-                    firstDoseTime = entity.firstDoseTime,
-                    doseTime = entity.doseTime,
+                                    firstDoseTime = entity.firstDoseTime,
+                doseTime = entity.doseTime,
+                hoursBetweenDoses = entity.hoursBetweenDoses,
+                selectedDays = entity.selectedDays,
+                cycleWeeks = entity.cycleWeeks,
                     userId = entity.userId,
                     createdAt = entity.createdAt,
                     isActive = entity.isActive,
@@ -219,6 +225,9 @@ class SqliteRepository(context: Context) {
                 frequency = reminder.frequency,
                 firstDoseTime = reminder.firstDoseTime,
                 doseTime = reminder.doseTime,
+                hoursBetweenDoses = reminder.hoursBetweenDoses,
+                selectedDays = reminder.selectedDays,
+                cycleWeeks = reminder.cycleWeeks,
                 userId = reminder.userId,
                 createdAt = reminder.createdAt,
                 isActive = reminder.isActive,
@@ -366,8 +375,11 @@ class SqliteRepository(context: Context) {
                 frequency = formData.frequency,
                 firstDoseTime = formData.firstDoseTime,
                 doseTime = formData.doseTime,
+                hoursBetweenDoses = formData.hoursBetweenDoses,
+                selectedDays = formData.selectedDays.joinToString(","),
+                cycleWeeks = formData.cycleWeeks,
                 userId = userId,
-                totalDoses = if (formData.frequency == "Diariamente") 2 else 1
+                totalDoses = if (formData.doseTime.isNotBlank()) 2 else 1
             )
             
             val reminderId = saveReminder(reminder).getOrThrow()
@@ -385,8 +397,8 @@ class SqliteRepository(context: Context) {
                 )
             )
             
-            // Segunda dosis (si es diariamente)
-            if (formData.frequency == "Diariamente") {
+            // Segunda dosis (si hay segunda dosis)
+            if (formData.doseTime.isNotBlank()) {
                 schedules.add(
                     ReminderSchedule(
                         reminderId = reminderId,
