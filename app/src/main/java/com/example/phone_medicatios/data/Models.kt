@@ -28,6 +28,9 @@ data class Reminder(
     val frequency: String = "",
     val firstDoseTime: String = "",
     val doseTime: String = "",
+    val hoursBetweenDoses: String = "",
+    val selectedDays: String = "",
+    val cycleWeeks: String = "",
     val userId: String = "",
     val createdAt: Date = Date(),
     val isActive: Boolean = true,
@@ -56,6 +59,9 @@ data class ReminderFormData(
     val frequency: String = "Diariamente",
     val firstDoseTime: String = "8:00 a.m.",
     val doseTime: String = "8:00 p.m.",
+    val hoursBetweenDoses: String = "",
+    val selectedDays: List<String> = emptyList(),
+    val cycleWeeks: String = "",
     val description: String = "",
     val instructions: String = ""
 )

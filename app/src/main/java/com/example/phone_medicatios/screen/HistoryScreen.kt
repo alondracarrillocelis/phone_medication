@@ -345,7 +345,11 @@ fun ReminderHistoryItem(
                             color = Color.Gray
                         )
                         Text(
-                            "${reminder.firstDoseTime}${if (reminder.frequency == "Diariamente") " - ${reminder.doseTime}" else ""}",
+                            if (reminder.doseTime.isNotBlank()) {
+                                "${reminder.firstDoseTime} - ${reminder.doseTime}"
+                            } else {
+                                "Hora: ${reminder.firstDoseTime}"
+                            },
                             fontSize = 12.sp,
                             color = purple,
                             fontWeight = FontWeight.Medium
@@ -411,7 +415,10 @@ fun ReminderHistoryItem(
                                 color = purple
                             )
                             Text(
-                                reminder.frequency,
+                                when (reminder.frequency) {
+                                    "Cíclicamente" -> "${reminder.frequency} (Cada ${reminder.cycleWeeks} semanas)"
+                                    else -> reminder.frequency
+                                },
                                 fontSize = 14.sp,
                                 color = Color.Black
                             )

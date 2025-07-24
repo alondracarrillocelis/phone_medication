@@ -243,7 +243,10 @@ fun ReminderCard(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "Frecuencia: ${reminder.frequency}",
+                    when (reminder.frequency) {
+                        "Cíclicamente" -> "Frecuencia: ${reminder.frequency} (Cada ${reminder.cycleWeeks} semanas)"
+                        else -> "Frecuencia: ${reminder.frequency}"
+                    },
                     fontSize = 12.sp,
                     color = Color.Gray
                 )
@@ -253,11 +256,13 @@ fun ReminderCard(
                     fontSize = 12.sp,
                     color = Color.Gray
                 )
-                Text(
-                    "Hora dosis: ${reminder.doseTime}",
-                    fontSize = 12.sp,
-                    color = Color.Gray
-                )
+                if (reminder.doseTime.isNotBlank()) {
+                    Text(
+                        "Segunda dosis: ${reminder.doseTime}",
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+                }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     "Agregado: ${dateFormat.format(reminder.createdAt)}",
