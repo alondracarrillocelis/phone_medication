@@ -1,4 +1,5 @@
 package com.example.phone_medicatios.screen
+import androidx.compose.runtime.collectAsState
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
@@ -11,9 +12,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,12 +35,13 @@ import java.util.*
 @Composable
 fun DashboardScreen(navController: NavHostController, viewModel: ReminderViewModel) {
     val purple = Color(0xFFB295C7)
-    
+
     val medications by viewModel.medications.collectAsState()
     val todaySchedules by viewModel.todaySchedules.collectAsState()
     val stats by viewModel.stats.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val successMessage by viewModel.successMessage.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
 
     // Obtener fecha actual
     val currentDate = SimpleDateFormat("EEEE, dd 'de' MMMM 'del' yyyy", Locale("es", "ES"))
@@ -54,12 +56,23 @@ fun DashboardScreen(navController: NavHostController, viewModel: ReminderViewMod
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.White)
-                .padding(vertical = 40.dp)
-        ) {
+        if (isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    color = purple,
+                    modifier = Modifier.size(48.dp)
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.White)
+                    .padding(vertical = 40.dp)
+            ) {
             // Header
             item {
                 Row(
@@ -93,6 +106,24 @@ fun DashboardScreen(navController: NavHostController, viewModel: ReminderViewMod
                         Icon(
                             painter = painterResource(id = R.drawable.ic_clock),
                             contentDescription = "Historial",
+                            tint = purple,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.width(8.dp))
+                    
+                    // Botón de refresh
+                    IconButton(
+                        onClick = { viewModel.refreshData() },
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(purple.copy(alpha = 0.1f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Actualizar",
                             tint = purple,
                             modifier = Modifier.size(24.dp)
                         )
@@ -371,6 +402,7 @@ fun DashboardScreen(navController: NavHostController, viewModel: ReminderViewMod
                     )
                 }
             }
+        }
         }
     }
 }

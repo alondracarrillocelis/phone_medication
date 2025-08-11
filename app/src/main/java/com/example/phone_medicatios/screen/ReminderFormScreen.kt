@@ -354,7 +354,7 @@ fun ReminderFormScreen(
                         onClick = {
                             viewModel.clearMessages()
                             if (isEditReminderMode) {
-                                viewModel.updateReminder(context, editReminderId!!, formData)
+                                viewModel.updateReminder(context, editReminderId!!)
                             } else if (isEditMode) {
                                 viewModel.updateMedication(editMedId!!, formData)
                             } else {
