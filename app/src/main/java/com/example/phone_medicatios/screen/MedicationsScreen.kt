@@ -49,7 +49,7 @@ fun MedicationsScreen(navController: NavController, viewModel: ReminderViewModel
 
     // Forzar recarga de medicamentos al entrar a la pantalla
     LaunchedEffect(Unit) {
-        viewModel.loadMedications()
+        viewModel.forceRefreshData()
     }
 
     // Auto-ocultar mensajes de éxito después de unos segundos
@@ -185,7 +185,7 @@ fun MedicationsScreen(navController: NavController, viewModel: ReminderViewModel
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    "Crea tu primer recordatorio para ver tus medicamentos aquí",
+                                    "Agrega tu primer medicamento usando el botón +",
                                     fontSize = 14.sp,
                                     color = Color.Gray,
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -194,6 +194,35 @@ fun MedicationsScreen(navController: NavController, viewModel: ReminderViewModel
                         }
                     }
                 } else {
+                    // Header con contador
+                    item {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            colors = CardDefaults.cardColors(containerColor = purple.copy(alpha = 0.1f)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_pill_filled),
+                                    contentDescription = null,
+                                    tint = purple,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    "${medications.size} medicamento${if (medications.size != 1) "s" else ""} registrado${if (medications.size != 1) "s" else ""}",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = purple
+                                )
+                            }
+                        }
+                    }
                     items(medications) { medication ->
                         MedicationCard(
                             medication = medication,
@@ -335,6 +364,21 @@ fun MedicationCard(
                         fontSize = 14.sp,
                         color = Color.Gray
                     )
+                    if (medication.isActive) {
+                        Text(
+                            "Activo",
+                            fontSize = 12.sp,
+                            color = Color.Green,
+                            fontWeight = FontWeight.Medium
+                        )
+                    } else {
+                        Text(
+                            "Inactivo",
+                            fontSize = 12.sp,
+                            color = Color.Red,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
                 // Botón expandir/colapsar
                 IconButton(
@@ -356,21 +400,80 @@ fun MedicationCard(
                 exit = shrinkVertically() + fadeOut()
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    if (medication.description.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            medication.description,
-                            fontSize = 14.sp,
-                            color = Color.Gray
-                        )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    // Información detallada
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = purple.copy(alpha = 0.05f)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            if (medication.description.isNotBlank()) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        "Descripción:",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = purple,
+                                        modifier = Modifier.width(80.dp)
+                                    )
+                                    Text(
+                                        medication.description,
+                                        fontSize = 12.sp,
+                                        color = Color.Gray
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                            }
+                            
+                            if (medication.instructions.isNotBlank()) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.Top
+                                ) {
+                                    Text(
+                                        "Instrucciones:",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = purple,
+                                        modifier = Modifier.width(80.dp)
+                                    )
+                                    Text(
+                                        medication.instructions,
+                                        fontSize = 12.sp,
+                                        color = Color.Gray
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                            }
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "Agregado:",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = purple,
+                                    modifier = Modifier.width(80.dp)
+                                )
+                                Text(
+                                    dateFormat.format(medication.createdAt),
+                                    fontSize = 12.sp,
+                                    color = Color.Gray
+                                )
+                            }
+                        }
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "Agregado: ${dateFormat.format(medication.createdAt)}",
-                        fontSize = 12.sp,
-                        color = Color.Gray
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    // Botones de acción
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End
@@ -389,7 +492,6 @@ fun MedicationCard(
                                 modifier = Modifier.size(20.dp)
                             )
                         }
-                        // Botón de editar eliminado temporalmente
                     }
                 }
             }

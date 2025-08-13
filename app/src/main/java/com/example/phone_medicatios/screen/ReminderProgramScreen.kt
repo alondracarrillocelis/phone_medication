@@ -39,6 +39,17 @@ fun ReminderProgramScreen(navController: NavController, viewModel: ReminderViewM
     val errorMessage by viewModel.errorMessage.collectAsState()
     val successMessage by viewModel.successMessage.collectAsState()
     val shouldNavigateToDashboard by viewModel.shouldNavigateToDashboard.collectAsState()
+    
+    // Navegación automática al dashboard después de guardar
+    LaunchedEffect(shouldNavigateToDashboard) {
+        if (shouldNavigateToDashboard) {
+            delay(2000) // Esperar 2 segundos para que el usuario vea el mensaje de éxito
+            viewModel.resetNavigation()
+            navController.navigate(Screen.Dashboard.route) {
+                popUpTo(0) { inclusive = true }
+            }
+        }
+    }
 
     // Logging para debugging
     LaunchedEffect(formData) {
@@ -66,17 +77,6 @@ fun ReminderProgramScreen(navController: NavController, viewModel: ReminderViewM
         if (successMessage != null) {
             delay(3000) // 3 segundos
             viewModel.clearMessages()
-        }
-    }
-
-    // Navegación automática al dashboard después del guardado exitoso
-    LaunchedEffect(shouldNavigateToDashboard) {
-        if (shouldNavigateToDashboard) {
-            delay(2000) // Esperar 2 segundos para que el usuario vea el mensaje de éxito
-            viewModel.resetNavigation()
-            navController.navigate(Screen.Dashboard.route) {
-                popUpTo(0) { inclusive = true }
-            }
         }
     }
 

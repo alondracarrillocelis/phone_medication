@@ -19,17 +19,26 @@ class FirebaseService {
     // Obtener todos los medicamentos de un usuario
     suspend fun getMedications(userId: String): List<Medication> {
         return try {
+            Log.d(TAG, "Buscando medicamentos para userId: $userId")
+            
             val snapshot = db.collection(MEDICATIONS_COLLECTION)
                 .whereEqualTo("userId", userId)
                 .orderBy("createdAt", Query.Direction.DESCENDING)
                 .get()
                 .await()
 
-            snapshot.documents.mapNotNull { doc ->
+            val medications = snapshot.documents.mapNotNull { doc ->
                 doc.toObject(Medication::class.java)?.copy(id = doc.id)
             }
+            
+            Log.d(TAG, "Medicamentos encontrados: ${medications.size}")
+            medications.forEach { med ->
+                Log.d(TAG, "Medicamento: ${med.name}, userId: ${med.userId}, id: ${med.id}")
+            }
+            
+            medications
         } catch (e: Exception) {
-            Log.e(TAG, "Error getting medications: ${e.message}")
+            Log.e(TAG, "Error getting medications: ${e.message}", e)
             emptyList()
         }
     }
@@ -37,17 +46,26 @@ class FirebaseService {
     // Obtener todos los recordatorios de un usuario
     suspend fun getReminders(userId: String): List<Reminder> {
         return try {
+            Log.d(TAG, "Buscando recordatorios para userId: $userId")
+            
             val snapshot = db.collection(REMINDERS_COLLECTION)
                 .whereEqualTo("userId", userId)
                 .orderBy("createdAt", Query.Direction.DESCENDING)
                 .get()
                 .await()
 
-            snapshot.documents.mapNotNull { doc ->
+            val reminders = snapshot.documents.mapNotNull { doc ->
                 doc.toObject(Reminder::class.java)?.copy(id = doc.id)
             }
+            
+            Log.d(TAG, "Recordatorios encontrados: ${reminders.size}")
+            reminders.forEach { reminder ->
+                Log.d(TAG, "Recordatorio: ${reminder.medicationName}, userId: ${reminder.userId}, id: ${reminder.id}")
+            }
+            
+            reminders
         } catch (e: Exception) {
-            Log.e(TAG, "Error getting reminders: ${e.message}")
+            Log.e(TAG, "Error getting reminders: ${e.message}", e)
             emptyList()
         }
     }
@@ -55,12 +73,6 @@ class FirebaseService {
     // Obtener recordatorios del día actual
     suspend fun getTodaySchedules(userId: String): List<TodaySchedule> {
         return try {
-            val today = Calendar.getInstance()
-            today.set(Calendar.HOUR_OF_DAY, 0)
-            today.set(Calendar.MINUTE, 0)
-            today.set(Calendar.SECOND, 0)
-            today.set(Calendar.MILLISECOND, 0)
-
             val snapshot = db.collection(REMINDERS_COLLECTION)
                 .whereEqualTo("userId", userId)
                 .whereEqualTo("isActive", true)
@@ -76,8 +88,8 @@ class FirebaseService {
                         medicationName = reminder.medicationName,
                         dosage = reminder.dosage,
                         time = reminder.firstDoseTime,
-                        isCompleted = false,
-                        isOverdue = false
+                        isCompleted = reminder.completedDoses > 0,
+                        isOverdue = false // Se puede implementar lógica de atraso más adelante
                     )
                 } else null
             }
@@ -90,11 +102,15 @@ class FirebaseService {
     // Agregar un nuevo medicamento
     suspend fun addMedication(medication: Medication): String? {
         return try {
+            Log.d(TAG, "Intentando agregar medicamento: ${medication.name}")
+            Log.d(TAG, "Datos del medicamento: userId=${medication.userId}, dosage=${medication.dosage}")
+            
             val docRef = db.collection(MEDICATIONS_COLLECTION).add(medication).await()
             Log.d(TAG, "Medication added with ID: ${docRef.id}")
             docRef.id
         } catch (e: Exception) {
-            Log.e(TAG, "Error adding medication: ${e.message}")
+            Log.e(TAG, "Error adding medication: ${e.message}", e)
+            Log.e(TAG, "Stack trace: ${e.stackTraceToString()}")
             null
         }
     }
@@ -102,11 +118,15 @@ class FirebaseService {
     // Agregar un nuevo recordatorio
     suspend fun addReminder(reminder: Reminder): String? {
         return try {
+            Log.d(TAG, "Intentando agregar recordatorio: ${reminder.medicationName}")
+            Log.d(TAG, "Datos del recordatorio: userId=${reminder.userId}, frequency=${reminder.frequency}")
+            
             val docRef = db.collection(REMINDERS_COLLECTION).add(reminder).await()
             Log.d(TAG, "Reminder added with ID: ${docRef.id}")
             docRef.id
         } catch (e: Exception) {
-            Log.e(TAG, "Error adding reminder: ${e.message}")
+            Log.e(TAG, "Error adding reminder: ${e.message}", e)
+            Log.e(TAG, "Stack trace: ${e.stackTraceToString()}")
             null
         }
     }
@@ -172,7 +192,7 @@ class FirebaseService {
         return try {
             db.collection(REMINDERS_COLLECTION)
                 .document(reminderId)
-                .update("completed", completed)
+                .update("completedDoses", if (completed) 1 else 0)
                 .await()
             true
         } catch (e: Exception) {
