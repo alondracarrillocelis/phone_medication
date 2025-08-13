@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "113478947185",
-    "project_id": "medications-reminder1",
-    "storage_bucket": "medications-reminder1.firebasestorage.app"
+    "project_number": "1096279061680",
+    "project_id": "medications-reminder-diego",
+    "storage_bucket": "medications-reminder-diego.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:113478947185:android:d5d0c489254cf1226da6d0",
+        "mobilesdk_app_id": "1:1096279061680:android:d9d9f30faadc35ba41f775",
         "android_client_info": {
           "package_name": "com.example.phone_medicatios"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCeVQ3ZElVebhZaEr3oebTFd3MkovJgiw0"
+          "current_key": "AIzaSyBd4Z2JlR9LE_2t4_1irglyHeqIaPLHVNE"
         }
       ],
       "services": {

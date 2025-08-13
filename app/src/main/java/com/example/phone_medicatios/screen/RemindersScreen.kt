@@ -38,6 +38,11 @@ fun RemindersScreen(navController: NavController, viewModel: ReminderViewModel) 
     val errorMessage by viewModel.errorMessage.collectAsState()
     val successMessage by viewModel.successMessage.collectAsState()
 
+    // Forzar recarga de recordatorios al entrar a la pantalla
+    LaunchedEffect(Unit) {
+        viewModel.forceRefreshData()
+    }
+
     // Auto-ocultar mensajes de éxito después de unos segundos
     LaunchedEffect(successMessage) {
         if (successMessage != null) {

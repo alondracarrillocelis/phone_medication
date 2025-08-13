@@ -85,8 +85,36 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
         _shouldNavigateToDashboard.value = false
     }
 
+    fun shouldNavigateToDashboard(): Boolean {
+        return _shouldNavigateToDashboard.value
+    }
+
     fun refreshData() {
+        Log.d("ReminderViewModel", "Refrescando datos...")
         loadInitialData()
+    }
+    
+    fun forceRefreshData() {
+        Log.d("ReminderViewModel", "Forzando refresco de datos...")
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                
+                // Limpiar datos actuales
+                _medications.value = emptyList()
+                _reminders.value = emptyList()
+                _todaySchedules.value = emptyList()
+                _stats.value = MedicationStats()
+                
+                // Recargar desde Firebase
+                loadInitialData()
+                
+            } catch (e: Exception) {
+                Log.e("ReminderViewModel", "Error en forceRefreshData: ${e.message}", e)
+            } finally {
+                _isLoading.value = false
+            }
+        }
     }
 
     fun updateFormData(newData: ReminderFormData) {
@@ -95,7 +123,56 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun loadMedications() {
-        loadInitialData()
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                
+                // Cargar solo medicamentos desde Firebase
+                val medications = repository.getMedications()
+                _medications.value = medications
+                
+                // Actualizar estadísticas
+                val currentStats = _stats.value
+                _stats.value = currentStats.copy(
+                    totalMedications = medications.size
+                )
+                
+                Log.d("ReminderViewModel", "Medicamentos cargados: ${medications.size}")
+                
+            } catch (e: Exception) {
+                Log.e("ReminderViewModel", "Error cargando medicamentos: ${e.message}")
+                _errorMessage.value = "Error al cargar medicamentos: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun loadReminders() {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                
+                // Cargar solo recordatorios desde Firebase
+                val reminders = repository.getReminders()
+                _reminders.value = reminders
+                
+                // Actualizar estadísticas
+                val activeReminders = reminders.count { it.isActive }
+                val currentStats = _stats.value
+                _stats.value = currentStats.copy(
+                    activeReminders = activeReminders
+                )
+                
+                Log.d("ReminderViewModel", "Recordatorios cargados: ${reminders.size}")
+                
+            } catch (e: Exception) {
+                Log.e("ReminderViewModel", "Error cargando recordatorios: ${e.message}")
+                _errorMessage.value = "Error al cargar recordatorios: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
     }
 
     private fun loadInitialData() {
@@ -103,21 +180,42 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
             try {
                 _isLoading.value = true
                 
+                Log.d("ReminderViewModel", "Iniciando carga de datos desde Firebase...")
+                
                 // Cargar datos desde Firebase
                 val medications = repository.getMedications()
-                val reminders = repository.getReminders()
-                val todaySchedules = repository.getTodaySchedules()
-                val stats = repository.getUserStats()
+                Log.d("ReminderViewModel", "Medicamentos cargados: ${medications.size}")
                 
+                val reminders = repository.getReminders()
+                Log.d("ReminderViewModel", "Recordatorios cargados: ${reminders.size}")
+                
+                val todaySchedules = repository.getTodaySchedules()
+                Log.d("ReminderViewModel", "Horarios de hoy cargados: ${todaySchedules.size}")
+                
+                // Calcular estadísticas basadas en los datos reales
+                val activeReminders = reminders.count { it.isActive }
+                val completedToday = reminders.count { it.completedDoses > 0 }
+                val pendingToday = activeReminders - completedToday
+                
+                val stats = MedicationStats(
+                    totalMedications = medications.size,
+                    activeReminders = activeReminders,
+                    completedToday = completedToday,
+                    pendingToday = pendingToday
+                )
+                
+                // Actualizar todos los estados
                 _medications.value = medications
                 _reminders.value = reminders
                 _todaySchedules.value = todaySchedules
                 _stats.value = stats
                 
                 Log.d("ReminderViewModel", "Datos cargados desde Firebase: ${medications.size} medicamentos, ${reminders.size} recordatorios")
+                Log.d("ReminderViewModel", "Estadísticas actualizadas: ${stats.totalMedications} medicamentos, ${stats.activeReminders} recordatorios activos")
+                Log.d("ReminderViewModel", "Recordatorios activos: $activeReminders, Completados hoy: $completedToday, Pendientes: $pendingToday")
                 
             } catch (e: Exception) {
-                Log.e("ReminderViewModel", "Error cargando datos desde Firebase: ${e.message}")
+                Log.e("ReminderViewModel", "Error cargando datos desde Firebase: ${e.message}", e)
                 _errorMessage.value = "Error al cargar datos: ${e.message}"
                 
                 // Cargar datos de muestra como fallback
@@ -239,7 +337,9 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
                 
                 if (medicationId != null) {
                     _successMessage.value = "¡Medicamento añadido exitosamente!"
-                    loadInitialData() // Refresh all data from Firebase
+                    
+                    // Recargar todos los datos desde Firebase para asegurar sincronización
+                    loadInitialData()
                 } else {
                     _errorMessage.value = "Error al guardar en Firebase"
                 }
@@ -256,6 +356,7 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
         if (!validateCompleteForm(data)) return
 
         _isLoading.value = true
+        Log.d("ReminderViewModel", "Iniciando proceso de guardado para: ${data.name}")
 
         viewModelScope.launch {
             try {
@@ -270,25 +371,32 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
                     frequency = data.frequency,
                     firstDoseTime = data.hour,
                     doseTime = data.secondHour,
-                    userId = data.userId,
+                    userId = "user1", // Usar el mismo userId que el repositorio
                     createdAt = data.createdAt,
                     isActive = !data.completed,
                     totalDoses = if (data.frequency == "Diariamente") 2 else 1,
                     completedDoses = if (data.completed) 1 else 0
                 )
                 
+                Log.d("ReminderViewModel", "Recordatorio creado, intentando guardar en Firebase...")
+                
                 // Guardar en Firebase
                 val reminderId = repository.addReminder(newReminder)
                 
                 if (reminderId != null) {
+                    Log.d("ReminderViewModel", "Recordatorio guardado exitosamente con ID: $reminderId")
                     _successMessage.value = "¡Recordatorio creado exitosamente!"
                     scheduleNotifications(context, data, reminderId)
                     _shouldNavigateToDashboard.value = true
-                    loadInitialData() // Refresh all data from Firebase
+                    
+                    // Recargar todos los datos desde Firebase para asegurar sincronización
+                    loadInitialData()
                 } else {
-                    _errorMessage.value = "Error al guardar en Firebase"
+                    Log.e("ReminderViewModel", "Error: repository.addReminder retornó null")
+                    _errorMessage.value = "Error al guardar en Firebase - No se pudo crear el recordatorio"
                 }
             } catch (e: Exception) {
+                Log.e("ReminderViewModel", "Error al guardar recordatorio: ${e.message}", e)
                 _errorMessage.value = "Error al guardar: ${e.message}"
             } finally {
                 _isLoading.value = false
@@ -343,6 +451,31 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
         )
 
         updateMedication(reminderData, context)
+    }
+
+    fun deleteMedication(medicationId: String) {
+        _isLoading.value = true
+        
+        viewModelScope.launch {
+            try {
+                // Eliminar de Firebase
+                val success = repository.deleteMedication(medicationId)
+                
+                if (success) {
+                    _successMessage.value = "¡Medicamento eliminado exitosamente!"
+                    
+                    // Recargar todos los datos desde Firebase para asegurar sincronización
+                    loadInitialData()
+                } else {
+                    _errorMessage.value = "Error al eliminar de Firebase"
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Error al eliminar: ${e.message}"
+                Log.e("ReminderViewModel", "Error deleting medication: ${e.message}")
+            } finally {
+                _isLoading.value = false
+            }
+        }
     }
 
     fun updateMedication(medicationId: String, formData: ReminderFormData) {
@@ -427,32 +560,27 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun deleteMedication(id: String) {
-        viewModelScope.launch {
-            try {
-                kotlinx.coroutines.delay(300) // Simulate network delay
-                val currentList = _medications.value.toMutableList()
-                currentList.removeAll { it.id == id }
-                _medications.value = currentList
-                _successMessage.value = "Medicamento eliminado exitosamente"
-                loadInitialData() // Refresh all data
-            } catch (e: Exception) {
-                _errorMessage.value = "Error al eliminar: ${e.message}"
-            }
-        }
-    }
-
     fun deleteReminder(id: String) {
+        _isLoading.value = true
+        
         viewModelScope.launch {
             try {
-                kotlinx.coroutines.delay(300) // Simulate network delay
-                val currentList = _reminders.value.toMutableList()
-                currentList.removeAll { it.id == id }
-                _reminders.value = currentList
-                _successMessage.value = "Recordatorio eliminado exitosamente"
-                loadInitialData() // Refresh all data
+                // Eliminar de Firebase
+                val success = repository.deleteReminder(id)
+                
+                if (success) {
+                    _successMessage.value = "¡Recordatorio eliminado exitosamente!"
+                    
+                    // Recargar todos los datos desde Firebase para asegurar sincronización
+                    loadInitialData()
+                } else {
+                    _errorMessage.value = "Error al eliminar de Firebase"
+                }
             } catch (e: Exception) {
                 _errorMessage.value = "Error al eliminar: ${e.message}"
+                Log.e("ReminderViewModel", "Error deleting reminder: ${e.message}")
+            } finally {
+                _isLoading.value = false
             }
         }
     }
@@ -478,17 +606,26 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
     fun markScheduleAsCompleted(scheduleId: String) {
         viewModelScope.launch {
             try {
-                kotlinx.coroutines.delay(300) // Simulate network delay
-                val currentList = _reminders.value.toMutableList()
-                val index = currentList.indexOfFirst { it.id == scheduleId }
-                if (index != -1) {
-                    currentList[index] = currentList[index].copy(completedDoses = 1)
-                    _reminders.value = currentList
-                    _successMessage.value = "¡Medicamento tomado! ✅"
-                    loadInitialData() // Refresh all data
+                // Buscar el recordatorio correspondiente
+                val reminder = _reminders.value.find { it.id == scheduleId }
+                if (reminder != null) {
+                    // Marcar como completado en Firebase
+                    val success = repository.markReminderCompleted(scheduleId, true)
+                    
+                    if (success) {
+                        _successMessage.value = "¡Medicamento tomado! ✅"
+                        
+                        // Recargar todos los datos desde Firebase para asegurar sincronización
+                        loadInitialData()
+                    } else {
+                        _errorMessage.value = "Error al actualizar en Firebase"
+                    }
+                } else {
+                    _errorMessage.value = "Recordatorio no encontrado"
                 }
             } catch (e: Exception) {
                 _errorMessage.value = "Error al marcar como completado: ${e.message}"
+                Log.e("ReminderViewModel", "Error marking schedule as completed: ${e.message}")
             }
         }
     }

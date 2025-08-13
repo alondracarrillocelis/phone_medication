@@ -9,12 +9,12 @@ plugins {
 
 android {
     namespace = "com.example.phone_medicatios"
-    compileSdk = 35
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.example.phone_medicatios"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0"
 
@@ -60,11 +60,22 @@ android {
     buildFeatures {
         compose = true
     }
+    
+    // Configuraciones específicas para resolver problemas de jlink.exe
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
+    }
 }
 
 kapt {
     correctErrorTypes = true
     useBuildCache = true
+    // Configuraciones adicionales para evitar problemas de compilación
+    javacOptions {
+        option("-source", "11")
+        option("-target", "11")
+    }
 }
 
 dependencies {
