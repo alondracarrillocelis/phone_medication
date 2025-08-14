@@ -38,13 +38,49 @@ fun ReminderScheduleScreen(navController: NavController, viewModel: ReminderView
     val errorMessage by viewModel.errorMessage.collectAsState()
     val successMessage by viewModel.successMessage.collectAsState()
     
+    // Debug: Log del formData para verificar que los datos se preservan
+    LaunchedEffect(formData) {
+        android.util.Log.d("ReminderScheduleScreen", "formData actualizado: $formData")
+    }
+    
     // Campo de segunda dosis manual - no se calcula automáticamente
 
     var frecuenciaExpanded by remember { mutableStateOf(false) }
-    val frecuenciaOptions = listOf("Diariamente", "Días Seleccionados", "Cíclicamente")
+    val frecuenciaOptions = listOf("4", "6", "8", "12", "24")
 
     var periodoExpanded by remember { mutableStateOf(false) }
-    val opcionesHora = listOf("6:00 a.m.", "7:00 a.m.", "8:00 a.m.", "9:00 a.m.", "12:00 p.m.", "6:00 p.m.")
+    var segundaDosisExpanded by remember { mutableStateOf(false) }
+    
+    // Variable para el campo de horas entre dosis
+    var horasEntreDosis by remember { mutableStateOf("") }
+    
+    // Opciones completas de hora (24 horas)
+    val opcionesHora = listOf(
+        "12:00 a.m.", "1:00 a.m.", "2:00 a.m.", "3:00 a.m.", "4:00 a.m.", "5:00 a.m.",
+        "6:00 a.m.", "7:00 a.m.", "8:00 a.m.", "9:00 a.m.", "10:00 a.m.", "11:00 a.m.",
+        "12:00 p.m.", "1:00 p.m.", "2:00 p.m.", "3:00 p.m.", "4:00 p.m.", "5:00 p.m.",
+        "6:00 p.m.", "7:00 p.m.", "8:00 p.m.", "9:00 p.m.", "10:00 p.m.", "11:00 p.m."
+    )
+    
+    // Función para calcular la segunda dosis basada en la primera dosis y las horas
+    fun calcularSegundaDosis(primeraDosis: String, horasEntreDosis: Int): String {
+        if (primeraDosis.isBlank() || horasEntreDosis <= 0) return ""
+        
+        val horaMap = mapOf(
+            "12:00 a.m." to 0, "1:00 a.m." to 1, "2:00 a.m." to 2, "3:00 a.m." to 3,
+            "4:00 a.m." to 4, "5:00 a.m." to 5, "6:00 a.m." to 6, "7:00 a.m." to 7,
+            "8:00 a.m." to 8, "9:00 a.m." to 9, "10:00 a.m." to 10, "11:00 a.m." to 11,
+            "12:00 p.m." to 12, "1:00 p.m." to 13, "2:00 p.m." to 14, "3:00 p.m." to 15,
+            "4:00 p.m." to 16, "5:00 p.m." to 17, "6:00 p.m." to 18, "7:00 p.m." to 19,
+            "8:00 p.m." to 20, "9:00 p.m." to 21, "10:00 p.m." to 22, "11:00 p.m." to 23
+        )
+        
+        val horaInicial = horaMap[primeraDosis] ?: return ""
+        val horaFinal = (horaInicial + horasEntreDosis) % 24
+        
+        val horaAMPM = horaMap.entries.find { it.value == horaFinal }?.key ?: return ""
+        return horaAMPM
+    }
     
     // Campo de horas entre dosis ahora es manual
     
@@ -61,6 +97,8 @@ fun ReminderScheduleScreen(navController: NavController, viewModel: ReminderView
             viewModel.clearMessages()
         }
     }
+    
+
     
     // No hay sincronización automática - el usuario ingresa manualmente
 
@@ -146,7 +184,7 @@ fun ReminderScheduleScreen(navController: NavController, viewModel: ReminderView
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                formData.medication.ifBlank { "Medicamento" }, 
+                                formData.name.ifBlank { "Medicamento" }, 
                                 fontSize = 18.sp, 
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -164,16 +202,16 @@ fun ReminderScheduleScreen(navController: NavController, viewModel: ReminderView
                     expanded = frecuenciaExpanded,
                     onExpandedChange = { frecuenciaExpanded = !frecuenciaExpanded }
                 ) {
-                    OutlinedTextField(
-                        value = formData.frequency,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { 
-                            Text(
-                                "¿Cada cuándo lo debes tomar?", 
-                                fontSize = 16.sp
-                            ) 
-                        },
+                                            OutlinedTextField(
+                            value = formData.frequencyHours.toString(),
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { 
+                                Text(
+                                    "Frecuencia (cada X horas)", 
+                                    fontSize = 16.sp
+                                ) 
+                            },
                         trailingIcon = {
                             ExposedDropdownMenuDefaults.TrailingIcon(expanded = frecuenciaExpanded)
                         },
@@ -197,144 +235,70 @@ fun ReminderScheduleScreen(navController: NavController, viewModel: ReminderView
                                         fontSize = 16.sp
                                     ) 
                                 },
-                                onClick = {
-                                    viewModel.updateFormData(formData.copy(frequency = option))
-                                    frecuenciaExpanded = false
-                                }
+                                                                    onClick = {
+                                        val frequencyHours = option.toIntOrNull() ?: 8
+                                        viewModel.updateFormData(formData.copy(frequencyHours = frequencyHours))
+                                        frecuenciaExpanded = false
+                                    }
                             )
                         }
                     }
                 }
 
-                // Días seleccionados (solo si la frecuencia es "Días Seleccionados")
-                if (formData.frequency == "Días Seleccionados") {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(
-                            "Selecciona los días", 
-                            fontSize = 18.sp, 
-                            fontWeight = FontWeight.SemiBold,
-                            color = purple
-                        )
-                        
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly
-                        ) {
-                            diasSemana.forEachIndexed { index, dia ->
-                                val isSelected = formData.selectedDays.contains(nombresDias[index])
-                                Box(
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            if (isSelected) purple else Color.Gray.copy(alpha = 0.2f)
-                                        )
-                                        .clickable {
-                                            val diaSeleccionado = nombresDias[index]
-                                            val nuevosDias = if (isSelected) {
-                                                formData.selectedDays - diaSeleccionado
-                                            } else {
-                                                formData.selectedDays + diaSeleccionado
-                                            }
-                                            viewModel.updateFormData(formData.copy(selectedDays = nuevosDias))
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = dia,
-                                        color = if (isSelected) Color.White else Color.Gray,
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
-                        
-                        if (formData.selectedDays.isNotEmpty()) {
-                            Text(
-                                "Días seleccionados: ${formData.selectedDays.joinToString(", ")}",
-                                fontSize = 12.sp,
-                                color = purple,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-                }
-
-                // Configuración de ciclos (solo si la frecuencia es "Cíclicamente")
-                if (formData.frequency == "Cíclicamente") {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(
-                            "Configuración del ciclo", 
-                            fontSize = 18.sp, 
-                            fontWeight = FontWeight.SemiBold,
-                            color = purple
-                        )
-                        
-                        ExposedDropdownMenuBox(
-                            expanded = ciclosExpanded,
-                            onExpandedChange = { ciclosExpanded = !ciclosExpanded }
-                        ) {
-                            OutlinedTextField(
-                                value = formData.cycleWeeks,
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { 
-                                    Text(
-                                        "Cada cuántas semanas", 
-                                        fontSize = 16.sp
-                                    ) 
-                                },
-                                placeholder = { 
-                                    Text(
-                                        "Selecciona el ciclo", 
-                                        fontSize = 14.sp
-                                    ) 
-                                },
-                                trailingIcon = {
-                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = ciclosExpanded)
-                                },
+                // Días seleccionados (siempre visible)
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        "Selección de días", 
+                        fontSize = 18.sp, 
+                        fontWeight = FontWeight.SemiBold,
+                        color = purple
+                    )
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        diasSemana.forEachIndexed { index, dia ->
+                            val isSelected = formData.days.contains(nombresDias[index])
+                            Box(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .menuAnchor(),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = purple,
-                                    unfocusedBorderColor = Color.Gray.copy(alpha = 0.5f)
-                                )
-                            )
-                            ExposedDropdownMenu(
-                                expanded = ciclosExpanded,
-                                onDismissRequest = { ciclosExpanded = false }
-                            ) {
-                                opcionesCiclos.forEach { semanas ->
-                                    DropdownMenuItem(
-                                        text = { 
-                                            Text(
-                                                "Cada $semanas semanas", 
-                                                fontSize = 16.sp
-                                            ) 
-                                        },
-                                        onClick = {
-                                            viewModel.updateFormData(formData.copy(cycleWeeks = semanas))
-                                            ciclosExpanded = false
-                                        }
+                                    .size(48.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (isSelected) purple else Color.Gray.copy(alpha = 0.2f)
                                     )
-                                }
+                                    .clickable {
+                                        val diaSeleccionado = nombresDias[index]
+                                        val nuevosDias = if (isSelected) {
+                                            formData.days - diaSeleccionado
+                                        } else {
+                                            formData.days + diaSeleccionado
+                                        }
+                                        viewModel.updateFormData(formData.copy(days = nuevosDias))
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = dia,
+                                    color = if (isSelected) Color.White else Color.Gray,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
-                        
-                        if (formData.cycleWeeks.isNotBlank()) {
-                            val semanas = formData.cycleWeeks.toIntOrNull() ?: 2
-                            val semanasToma = semanas - 1
-                            Text(
-                                "Tomarás el medicamento durante $semanasToma semanas y descansarás 1 semana",
-                                fontSize = 12.sp,
-                                color = purple,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
+                    }
+                    
+                    if (formData.days.isNotEmpty()) {
+                        Text(
+                            "Días seleccionados: ${formData.days.joinToString(", ")}",
+                            fontSize = 12.sp,
+                            color = purple,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                 }
+
+
 
                 // Horarios
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -351,7 +315,7 @@ fun ReminderScheduleScreen(navController: NavController, viewModel: ReminderView
                         onExpandedChange = { periodoExpanded = !periodoExpanded }
                     ) {
                         OutlinedTextField(
-                            value = formData.firstDoseTime,
+                            value = formData.firstHour,
                             onValueChange = {},
                             readOnly = true,
                             label = { 
@@ -390,7 +354,7 @@ fun ReminderScheduleScreen(navController: NavController, viewModel: ReminderView
                                         ) 
                                     },
                                     onClick = {
-                                        viewModel.updateFormData(formData.copy(firstDoseTime = hora))
+                                        viewModel.updateFormData(formData.copy(firstHour = hora))
                                         periodoExpanded = false
                                     }
                                 )
@@ -398,61 +362,15 @@ fun ReminderScheduleScreen(navController: NavController, viewModel: ReminderView
                         }
                     }
                     
-                    // Campo para horas entre dosis (opcional)
-                    OutlinedTextField(
-                        value = formData.hoursBetweenDoses,
-                        onValueChange = { horas ->
-                            viewModel.updateFormData(formData.copy(hoursBetweenDoses = horas))
-                        },
-                        label = { 
-                            Text(
-                                "Cada cuántas horas (opcional)", 
-                                fontSize = 16.sp
-                            ) 
-                        },
-                        placeholder = { 
-                            Text(
-                                "Ej: 8 horas", 
-                                fontSize = 14.sp
-                            ) 
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = purple,
-                            unfocusedBorderColor = Color.Gray.copy(alpha = 0.5f)
-                        )
-                    )
+
                     
-                    // Segunda dosis (manual)
-                    OutlinedTextField(
-                        value = formData.doseTime,
-                        onValueChange = { nuevaHora ->
-                            viewModel.updateFormData(formData.copy(doseTime = nuevaHora))
-                        },
-                        label = { 
-                            Text(
-                                "Segunda dosis", 
-                                fontSize = 16.sp
-                            ) 
-                        },
-                        placeholder = { 
-                            Text(
-                                "Ej: 8:00 p.m.", 
-                                fontSize = 14.sp
-                            ) 
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = purple,
-                            unfocusedBorderColor = Color.Gray.copy(alpha = 0.5f)
-                        )
-                    )
+
                     
-                    // Campo manual - no hay cálculo automático
+
                 }
 
-                // Mensajes de estado
-                errorMessage?.let { error ->
+                // Mensajes de estado (solo si hay mensajes)
+                if (errorMessage?.isNotBlank() == true) {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -465,16 +383,27 @@ fun ReminderScheduleScreen(navController: NavController, viewModel: ReminderView
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "❌ $error",
+                                text = "❌ $errorMessage",
                                 color = Color.Red,
                                 fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.weight(1f)
                             )
+                            TextButton(
+                                onClick = { viewModel.clearMessages() }
+                            ) {
+                                Text(
+                                    "✕",
+                                    color = Color.Red,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }
                 
-                successMessage?.let { success ->
+                if (successMessage?.isNotBlank() == true) {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -487,11 +416,22 @@ fun ReminderScheduleScreen(navController: NavController, viewModel: ReminderView
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = success,
+                                text = successMessage,
                                 color = Color.Green,
                                 fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.weight(1f)
                             )
+                            TextButton(
+                                onClick = { viewModel.clearMessages() }
+                            ) {
+                                Text(
+                                    "✕",
+                                    color = Color.Green,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }
@@ -522,12 +462,20 @@ fun ReminderScheduleScreen(navController: NavController, viewModel: ReminderView
                     Button(
                         onClick = {
                             viewModel.clearMessages()
-                            if (viewModel.validateScheduleForm()) {
-                            navController.navigate(Screen.ReminderProgram.route)
+                            try {
+                                if (viewModel.validateScheduleForm()) {
+                                    navController.navigate(Screen.ReminderProgram.route)
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.e("ReminderScheduleScreen", "Error al validar formulario: ${e.message}", e)
+                                viewModel.setErrorMessage("Error al validar el formulario: ${e.message}")
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = purple),
-                        enabled = !isLoading && formData.frequency.isNotBlank() && formData.firstDoseTime.isNotBlank() && formData.doseTime.isNotBlank() && (formData.frequency != "Días Seleccionados" || formData.selectedDays.isNotEmpty()) && (formData.frequency != "Cíclicamente" || formData.cycleWeeks.isNotBlank()),
+                        enabled = !isLoading && 
+                                 formData.frequencyHours > 0 && 
+                                 formData.firstHour.isNotBlank() && 
+                                 formData.days.isNotEmpty(),
                         modifier = Modifier.weight(1f)
                     ) {
                         if (isLoading) {

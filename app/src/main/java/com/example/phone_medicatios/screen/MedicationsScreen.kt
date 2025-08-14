@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Refresh
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,11 +47,9 @@ fun MedicationsScreen(navController: NavController, viewModel: ReminderViewModel
     val medications by viewModel.medications.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val successMessage by viewModel.successMessage.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
 
-    // Forzar recarga de medicamentos al entrar a la pantalla
-    LaunchedEffect(Unit) {
-        viewModel.forceRefreshData()
-    }
+    // Los datos se actualizan automáticamente en tiempo real, no necesitamos cargar manualmente
 
     // Auto-ocultar mensajes de éxito después de unos segundos
     LaunchedEffect(successMessage) {
@@ -105,58 +104,98 @@ fun MedicationsScreen(navController: NavController, viewModel: ReminderViewModel
                     fontWeight = FontWeight.Bold,
                     color = Color.Black
                 )
+                
+
             }
 
             // Mensajes de estado
             errorMessage?.let { error ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.Red.copy(alpha = 0.1f)),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                if (error.isNotBlank()) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 8.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.Red.copy(alpha = 0.1f)),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(
-                            error,
-                            color = Color.Red,
-                            fontSize = 14.sp
-                        )
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                error,
+                                color = Color.Red,
+                                fontSize = 14.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            TextButton(
+                                onClick = { viewModel.clearMessages() }
+                            ) {
+                                Text(
+                                    "✕",
+                                    color = Color.Red,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                            }
+                        }
                     }
                 }
             }
 
             successMessage?.let { success ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.Green.copy(alpha = 0.1f)),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                if (success.isNotBlank()) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 8.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.Green.copy(alpha = 0.1f)),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(
-                            success,
-                            color = Color.Green,
-                            fontSize = 14.sp
-                        )
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                success,
+                                color = Color.Green,
+                                fontSize = 14.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            TextButton(
+                                onClick = { viewModel.clearMessages() }
+                            ) {
+                                Text(
+                                    "✕",
+                                    color = Color.Green,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                            }
+                        }
                     }
                 }
             }
 
-            // Lista de medicamentos
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+            // Indicador de carga
+            if (isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        color = purple,
+                        modifier = Modifier.size(48.dp)
+                    )
+                }
+            } else {
+                // Lista de medicamentos
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                 if (medications.isEmpty()) {
                     item {
                         Card(
@@ -226,16 +265,17 @@ fun MedicationsScreen(navController: NavController, viewModel: ReminderViewModel
                     items(medications) { medication ->
                         MedicationCard(
                             medication = medication,
-                            onDelete = { viewModel.deleteMedication(medication.id) },
+                            onDelete = { 
+                                viewModel.deleteMedication(medication.id)
+                            },
                             onEdit = {
                                 // Precargar datos en el ViewModel y navegar al formulario de edición
                                 viewModel.updateFormData(
                                     viewModel.formData.value.copy(
-                                        medication = medication.name,
-                                        dosage = medication.dosage,
+                                        name = medication.name,
+                                        dosage = medication.dosage.toDoubleOrNull() ?: 0.0,
                                         unit = medication.unit,
                                         type = medication.type,
-                                        description = medication.description,
                                         instructions = medication.instructions
                                     )
                                 )
@@ -246,7 +286,8 @@ fun MedicationsScreen(navController: NavController, viewModel: ReminderViewModel
                 }
             }
         }
-        // FAB para añadir medicamento
+    }
+    // FAB para añadir medicamento
         FloatingActionButton(
             onClick = { showAddDialog = true },
             containerColor = purple,

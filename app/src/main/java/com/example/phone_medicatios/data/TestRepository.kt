@@ -60,7 +60,7 @@ class TestRepository(context: Context) {
     
     suspend fun saveReminder(reminder: Reminder): Result<String> {
         return try {
-            Log.d("TestRepository", "Guardando recordatorio (simulado): ${reminder.medicationName}")
+            Log.d("TestRepository", "Guardando recordatorio (simulado): ${reminder.name}")
             Result.success("test_${System.currentTimeMillis()}")
         } catch (e: Exception) {
             Log.e("TestRepository", "Error al guardar recordatorio", e)
@@ -87,7 +87,7 @@ class TestRepository(context: Context) {
     
     suspend fun updateReminder(reminder: Reminder): Result<Unit> {
         return try {
-            Log.d("TestRepository", "Actualizando recordatorio (simulado): ${reminder.medicationName}")
+            Log.d("TestRepository", "Actualizando recordatorio (simulado): ${reminder.name}")
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e("TestRepository", "Error al actualizar recordatorio", e)

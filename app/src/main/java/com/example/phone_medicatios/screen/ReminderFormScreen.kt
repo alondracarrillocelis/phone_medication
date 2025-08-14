@@ -42,6 +42,7 @@ fun ReminderFormScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val successMessage by viewModel.successMessage.collectAsState()
+    val shouldNavigateToDashboard by viewModel.shouldNavigateToDashboard.collectAsState()
 
     // Detectar si es edición (por parámetro en la ruta)
     val editMedId = backStackEntry.arguments?.getString("editMedId")
@@ -63,6 +64,17 @@ fun ReminderFormScreen(
             kotlinx.coroutines.delay(1500)
             viewModel.clearMessages()
             navController.popBackStack()
+        }
+    }
+
+    // Navegar a la pantalla principal después de crear un recordatorio exitosamente
+    LaunchedEffect(shouldNavigateToDashboard) {
+        if (shouldNavigateToDashboard) {
+            kotlinx.coroutines.delay(1500) // Esperar a que se muestre el mensaje de éxito
+            viewModel.clearMessages()
+            navController.navigate(Screen.Dashboard.route) {
+                popUpTo(Screen.Dashboard.route) { inclusive = true }
+            }
         }
     }
 
@@ -137,9 +149,9 @@ fun ReminderFormScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     // Campo Medicamento
                     OutlinedTextField(
-                        value = formData.medication,
+                        value = formData.name,
                         onValueChange = { 
-                    viewModel.updateFormData(formData.copy(medication = it))
+                                                viewModel.updateFormData(formData.copy(name = it))
                         },
                         label = { 
                             Text(
@@ -163,9 +175,14 @@ fun ReminderFormScreen(
 
                     // Campo Dosis
                     OutlinedTextField(
-                        value = formData.dosage,
-                        onValueChange = { 
-                    viewModel.updateFormData(formData.copy(dosage = it))
+                        value = if (formData.dosage == formData.dosage.toInt().toDouble()) {
+                            formData.dosage.toInt().toString()
+                        } else {
+                            formData.dosage.toString()
+                        },
+                        onValueChange = { newValue ->
+                            val dosageValue = newValue.toDoubleOrNull() ?: 0.0
+                            viewModel.updateFormData(formData.copy(dosage = dosageValue))
                         },
                         label = { 
                             Text(
@@ -362,7 +379,7 @@ fun ReminderFormScreen(
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = purple),
-                        enabled = !isLoading && formData.medication.isNotBlank() && formData.dosage.isNotBlank(),
+                        enabled = !isLoading && formData.name.isNotBlank() && formData.dosage > 0.0,
                         modifier = Modifier.weight(1f)
                     ) {
                         if (isLoading) {

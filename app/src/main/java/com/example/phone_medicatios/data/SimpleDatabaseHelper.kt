@@ -195,19 +195,18 @@ class SimpleDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABAS
     fun insertReminder(reminder: Reminder): Long {
         val db = this.writableDatabase
         val values = ContentValues().apply {
-            put(COLUMN_MEDICATION_ID, reminder.medicationId.toLongOrNull() ?: 0)
-            put(COLUMN_MEDICATION_NAME, reminder.medicationName)
-            put(COLUMN_DOSAGE, reminder.dosage)
+            put(COLUMN_MEDICATION_NAME, reminder.name)
+            put(COLUMN_DOSAGE, reminder.dosage.toString())
             put(COLUMN_UNIT, reminder.unit)
             put(COLUMN_TYPE, reminder.type)
-            put(COLUMN_FREQUENCY, reminder.frequency)
-            put(COLUMN_FIRST_DOSE_TIME, reminder.firstDoseTime)
-            put(COLUMN_DOSE_TIME, reminder.doseTime)
+            put(COLUMN_FREQUENCY, reminder.frequencyHours.toString())
+            put(COLUMN_FIRST_DOSE_TIME, reminder.firstHour)
+            put(COLUMN_DOSE_TIME, "") // Ya no usamos hoursList
             put(COLUMN_USER_ID, reminder.userId)
             put(COLUMN_CREATED_AT, reminder.createdAt.time)
-            put(COLUMN_IS_ACTIVE, if (reminder.isActive) 1 else 0)
-            put(COLUMN_TOTAL_DOSES, reminder.totalDoses)
-            put(COLUMN_COMPLETED_DOSES, reminder.completedDoses)
+            put(COLUMN_IS_ACTIVE, if (reminder.active) 1 else 0)
+            put(COLUMN_TOTAL_DOSES, reminder.getTotalDosesCount())
+            put(COLUMN_COMPLETED_DOSES, reminder.completedDoses.size)
         }
         
         val id = db.insert(TABLE_REMINDERS, null, values)
@@ -232,19 +231,18 @@ class SimpleDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABAS
         while (cursor.moveToNext()) {
             val reminder = Reminder(
                 id = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ID)),
-                medicationId = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_MEDICATION_ID)),
-                medicationName = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_MEDICATION_NAME)),
-                dosage = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_DOSAGE)),
-                unit = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_UNIT)),
+                name = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_MEDICATION_NAME)),
                 type = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TYPE)),
-                frequency = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_FREQUENCY)),
-                firstDoseTime = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_FIRST_DOSE_TIME)),
-                doseTime = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_DOSE_TIME)),
+                dosage = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_DOSAGE)).toDoubleOrNull() ?: 0.0,
+                unit = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_UNIT)),
+                instructions = "", // Campo no disponible en la base de datos simple
+                frequencyHours = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_FREQUENCY)).toIntOrNull() ?: 8,
+                firstHour = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_FIRST_DOSE_TIME)),
+                days = emptyList(), // Campo no disponible en la base de datos simple
                 userId = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_USER_ID)),
                 createdAt = Date(cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_CREATED_AT))),
-                isActive = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_IS_ACTIVE)) == 1,
-                totalDoses = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_TOTAL_DOSES)),
-                completedDoses = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_COMPLETED_DOSES))
+                active = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_IS_ACTIVE)) == 1,
+                completed = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_COMPLETED_DOSES)) == 1
             )
             reminders.add(reminder)
         }

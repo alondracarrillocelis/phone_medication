@@ -25,6 +25,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.phone_medicatios.viewmodel.ReminderViewModel
 import com.example.phone_medicatios.navigation.Screen
 import com.example.phone_medicatios.components.StepItem
+import com.example.phone_medicatios.data.Reminder
 import kotlinx.coroutines.delay
 import androidx.compose.ui.platform.LocalContext
 
@@ -54,21 +55,28 @@ fun ReminderProgramScreen(navController: NavController, viewModel: ReminderViewM
     // Logging para debugging
     LaunchedEffect(formData) {
         android.util.Log.d("ReminderProgramScreen", "FormData actualizado:")
-        android.util.Log.d("ReminderProgramScreen", "- Medicamento: '${formData.medication}'")
+                    android.util.Log.d("ReminderProgramScreen", "- Medicamento: '${formData.name}'")
         android.util.Log.d("ReminderProgramScreen", "- Dosis: '${formData.dosage}'")
-        android.util.Log.d("ReminderProgramScreen", "- Hora de toma: '${formData.firstDoseTime}'")
+                    android.util.Log.d("ReminderProgramScreen", "- Hora de toma: '${formData.firstHour}'")
     }
 
     // Información desde el ViewModel
-    val medicamento = formData.medication
-    val dosis = formData.dosage
-    val horarios = if (formData.doseTime.isNotBlank()) {
-        listOf(
-            formData.firstDoseTime to "1 ${formData.type.lowercase()}",
-            formData.doseTime to "1 ${formData.type.lowercase()}"
-        )
-    } else {
-        listOf(formData.firstDoseTime to "1 ${formData.type.lowercase()}")
+    val medicamento = formData.name
+    val dosis = "${formData.dosage} ${formData.unit}"
+    // Calcular horarios basados en la frecuencia
+    val tempReminder = Reminder(
+        name = formData.name,
+        type = formData.type,
+        dosage = formData.dosage,
+        unit = formData.unit,
+        instructions = formData.instructions,
+        frequencyHours = formData.frequencyHours,
+        firstHour = formData.firstHour,
+        days = formData.days
+    )
+    val calculatedHours = tempReminder.calculateSchedule()
+    val horarios = calculatedHours.map { hour ->
+        hour to "1 ${formData.type.lowercase()}"
     }
     val iconos = listOf(R.drawable.ic_sun, R.drawable.ic_moon)
 
@@ -231,11 +239,7 @@ fun ReminderProgramScreen(navController: NavController, viewModel: ReminderViewM
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            when (formData.frequency) {
-                                "Cíclicamente" -> "Frecuencia: ${formData.frequency} (Cada ${formData.cycleWeeks} semanas)"
-                                "Días Seleccionados" -> "Frecuencia: ${formData.frequency} (${formData.selectedDays.joinToString(", ")})"
-                                else -> "Frecuencia: ${formData.frequency}"
-                            },
+                            "Frecuencia: Cada ${formData.frequencyHours} horas (${formData.days.joinToString(", ")})",
                             fontSize = 14.sp,
                             color = Color.Gray
                         )
