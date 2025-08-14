@@ -34,15 +34,8 @@ import java.util.*
 
 @Composable
 fun DashboardScreen(navController: NavHostController, viewModel: ReminderViewModel) {
-    // Actualizar datos cuando se entra a la pantalla
-    LaunchedEffect(Unit) {
-        viewModel.forceRefreshData()
-    }
+    // Los datos se actualizan automáticamente en tiempo real, no necesitamos cargar manualmente
     
-    // Recargar datos cuando se regresa a la pantalla
-    LaunchedEffect(navController) {
-        viewModel.forceRefreshData()
-    }
     val purple = Color(0xFFB295C7)
 
     val medications by viewModel.medications.collectAsState()
@@ -98,17 +91,28 @@ fun DashboardScreen(navController: NavHostController, viewModel: ReminderViewMod
                                 .background(purple.copy(alpha = 0.1f))
                                 .padding(12.dp)
                         )
-                        Spacer(modifier = Modifier.width(16.dp))
+                        Spacer(modifier = Modifier.width(20.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Bienvenido", fontSize = 28.sp, fontWeight = FontWeight.Bold)
-                            Text("¡Mantén tu salud al día! 💊", fontSize = 16.sp, color = Color.Gray)
+                            Text(
+                                "Bienvenido", 
+                                fontSize = 28.sp, 
+                                fontWeight = FontWeight.Bold,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Start
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                "¡Mantén tu salud al día! 💊", 
+                                fontSize = 16.sp, 
+                                color = Color.Gray,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Start
+                            )
                         }
                         
                         // Botón de historial
                         IconButton(
                             onClick = { navController.navigate(Screen.History.route) },
                             modifier = Modifier
-                                .size(48.dp)
+                                .size(52.dp)
                                 .clip(CircleShape)
                                 .background(purple.copy(alpha = 0.1f))
                         ) {
@@ -116,40 +120,23 @@ fun DashboardScreen(navController: NavHostController, viewModel: ReminderViewMod
                                 painter = painterResource(id = R.drawable.ic_clock),
                                 contentDescription = "Historial",
                                 tint = purple,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        
-                        Spacer(modifier = Modifier.width(8.dp))
-                        
-                        // Botón de refrescar
-                        IconButton(
-                            onClick = { viewModel.forceRefreshData() },
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(CircleShape)
-                                .background(purple.copy(alpha = 0.1f))
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Refresh,
-                                contentDescription = "Refrescar",
-                                tint = purple,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(26.dp)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(28.dp))
                     
                     // Fecha actual
                     Text(
                         currentDate,
                         fontSize = 16.sp,
                         color = Color.Gray,
-                        modifier = Modifier.padding(horizontal = 20.dp)
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Start
                     )
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(28.dp))
                 }
 
                 // Estadísticas
@@ -166,33 +153,40 @@ fun DashboardScreen(navController: NavHostController, viewModel: ReminderViewMod
                             onClick = { navController.navigate(Screen.Medications.route) }
                         ) {
                             Column(
-                                modifier = Modifier.padding(16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(20.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
                             ) {
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_medication),
                                     contentDescription = null,
                                     tint = purple,
-                                    modifier = Modifier.size(32.dp)
+                                    modifier = Modifier.size(36.dp)
                                 )
-                                Spacer(modifier = Modifier.height(8.dp))
+                                Spacer(modifier = Modifier.height(12.dp))
                                 Text(
                                     "${stats.totalMedications}",
-                                    fontSize = 24.sp,
+                                    fontSize = 28.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = purple
-                                )
-                                Text(
-                                    "Medicamentos",
-                                    fontSize = 12.sp,
-                                    color = Color.Gray
+                                    color = purple,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
+                                    "Medicamentos",
+                                    fontSize = 14.sp,
+                                    color = Color.Gray,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
                                     "Ver todos",
-                                    fontSize = 10.sp,
+                                    fontSize = 12.sp,
                                     color = purple,
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Medium,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                 )
                             }
                         }
@@ -205,37 +199,46 @@ fun DashboardScreen(navController: NavHostController, viewModel: ReminderViewMod
                             onClick = { navController.navigate(Screen.History.route) }
                         ) {
                             Column(
-                                modifier = Modifier.padding(16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(20.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
                             ) {
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_clock),
                                     contentDescription = null,
                                     tint = Color.Green,
-                                    modifier = Modifier.size(32.dp)
+                                    modifier = Modifier.size(36.dp)
                                 )
-                                Spacer(modifier = Modifier.height(8.dp))
+                                Spacer(modifier = Modifier.height(12.dp))
                                 Text(
                                     "${stats.activeReminders}",
-                                    fontSize = 24.sp,
+                                    fontSize = 28.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color.Green
-                                )
-                                Text(
-                                    "Recordatorios",
-                                    fontSize = 12.sp,
-                                    color = Color.Gray
+                                    color = Color.Green,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
+                                    "Recordatorios",
+                                    fontSize = 14.sp,
+                                    color = Color.Gray,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
                                     "Ver todos",
-                                    fontSize = 10.sp,
+                                    fontSize = 12.sp,
                                     color = Color.Green,
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Medium,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                 )
                             }
                         }
                     }
+                    
+                    Spacer(modifier = Modifier.height(32.dp))
                 }
 
                 // Tarjeta de progreso del día
@@ -246,61 +249,68 @@ fun DashboardScreen(navController: NavHostController, viewModel: ReminderViewMod
                         shape = RoundedCornerShape(16.dp)
                     ) {
                         Row(
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier.padding(20.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_check),
                                 contentDescription = null,
                                 tint = Color.Blue,
-                                modifier = Modifier.size(32.dp)
+                                modifier = Modifier.size(36.dp)
                             )
-                            Spacer(modifier = Modifier.width(16.dp))
+                            Spacer(modifier = Modifier.width(20.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     "Progreso del día",
-                                    fontSize = 16.sp,
+                                    fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.Black
                                 )
+                                Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     "${stats.completedToday} de ${stats.completedToday + stats.pendingToday} completadas",
-                                    fontSize = 14.sp,
+                                    fontSize = 15.sp,
                                     color = Color.Gray
                                 )
                             }
+                            Spacer(modifier = Modifier.width(16.dp))
                             Text(
                                 "${if (stats.completedToday + stats.pendingToday > 0) (stats.completedToday * 100 / (stats.completedToday + stats.pendingToday)) else 0}%",
-                                fontSize = 18.sp,
+                                fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.Blue
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(32.dp))
                 }
 
                 // Botones de acción
                 item {
                     Row(
                         modifier = Modifier.padding(horizontal = 20.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         // Botón de crear recordatorio
                         Button(
                             onClick = { navController.navigate(Screen.ReminderForm.route) },
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(containerColor = purple),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(16.dp),
+                            contentPadding = PaddingValues(vertical = 16.dp, horizontal = 20.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
                                 contentDescription = null,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(22.dp)
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Nuevo Recordatorio", fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                "Nuevo Recordatorio", 
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Medium
+                            )
                         }
 
                         // Botón de medicamentos
@@ -310,146 +320,56 @@ fun DashboardScreen(navController: NavHostController, viewModel: ReminderViewMod
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = purple
                             ),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(16.dp),
+                            contentPadding = PaddingValues(vertical = 16.dp, horizontal = 20.dp)
                         ) {
                             Icon(
                                 painter = painterResource(id = com.example.phone_medicatios.R.drawable.ic_medication),
                                 contentDescription = null,
-                                modifier = Modifier.size(20.dp),
+                                modifier = Modifier.size(22.dp),
                                 tint = purple
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Medicamentos", fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                "Medicamentos", 
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Medium
+                            )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(32.dp))
                 }
 
                 // Mensajes de estado
                 errorMessage?.let { error ->
-                    item {
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 20.dp, vertical = 8.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.Red.copy(alpha = 0.1f)),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                    if (error.isNotBlank()) {
+                        item {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.Red.copy(alpha = 0.1f)),
+                                shape = RoundedCornerShape(12.dp)
                             ) {
-                                Text(
-                                    error,
-                                    color = Color.Red,
-                                    fontSize = 14.sp
-                                )
-                            }
-                        }
-                    }
-                }
-
-                successMessage?.let { success ->
-                    item {
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 20.dp, vertical = 8.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.Green.copy(alpha = 0.1f)),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    success,
-                                    color = Color.Green,
-                                    fontSize = 14.sp
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Medicamentos recientes
-                if (medications.isNotEmpty()) {
-                    item {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 20.dp, vertical = 16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                "Medicamentos recientes",
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            TextButton(
-                                onClick = { navController.navigate(Screen.Medications.route) }
-                            ) {
-                                Text(
-                                    "Ver todos",
-                                    color = purple,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-                    }
-                    
-                    // Mostrar los 3 medicamentos más recientes
-                    items(medications.take(3)) { medication ->
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 20.dp, vertical = 4.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            shape = RoundedCornerShape(12.dp),
-                            elevation = CardDefaults.cardElevation(2.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_pill_filled),
-                                    contentDescription = null,
-                                    tint = purple,
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape)
-                                        .background(purple.copy(alpha = 0.1f))
-                                        .padding(6.dp)
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
+                                Row(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
                                     Text(
-                                        medication.name,
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Color.Black
-                                    )
-                                    Text(
-                                        "${medication.dosage} ${medication.unit} - ${medication.type}",
+                                        error,
+                                        color = Color.Red,
                                         fontSize = 14.sp,
-                                        color = Color.Gray
+                                        modifier = Modifier.weight(1f)
                                     )
-                                }
-                                if (medication.isActive) {
-                                    Card(
-                                        colors = CardDefaults.cardColors(containerColor = Color.Green.copy(alpha = 0.1f)),
-                                        shape = RoundedCornerShape(8.dp)
+                                    TextButton(
+                                        onClick = { viewModel.clearMessages() }
                                     ) {
                                         Text(
-                                            "Activo",
-                                            fontSize = 10.sp,
-                                            color = Color.Green,
-                                            fontWeight = FontWeight.Medium,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                            "✕",
+                                            color = Color.Red,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 16.sp
                                         )
                                     }
                                 }
@@ -458,7 +378,43 @@ fun DashboardScreen(navController: NavHostController, viewModel: ReminderViewMod
                     }
                 }
 
-                // Spacer después de medicamentos recientes
+                successMessage?.let { success ->
+                    if (success.isNotBlank()) {
+                        item {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.Green.copy(alpha = 0.1f)),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        success,
+                                        color = Color.Green,
+                                        fontSize = 14.sp,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    TextButton(
+                                        onClick = { viewModel.clearMessages() }
+                                    ) {
+                                        Text(
+                                            "✕",
+                                            color = Color.Green,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 16.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Spacer antes de pendientes de hoy
                 item {
                     Spacer(modifier = Modifier.height(16.dp))
                 }
@@ -467,42 +423,47 @@ fun DashboardScreen(navController: NavHostController, viewModel: ReminderViewMod
                 item {
                     Text(
                         "Pendientes de hoy",
-                        fontSize = 20.sp,
+                        fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Start
                     )
                 }
 
-                if (todaySchedules.isEmpty()) {
+                // Filtrar solo los horarios no completados
+                val pendingSchedules = todaySchedules.filter { !it.isCompleted }
+                
+                if (pendingSchedules.isEmpty()) {
                     item {
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 20.dp),
                             colors = CardDefaults.cardColors(containerColor = purple.copy(alpha = 0.05f)),
-                            shape = RoundedCornerShape(16.dp)
+                            shape = RoundedCornerShape(20.dp)
                         ) {
                             Column(
-                                modifier = Modifier.padding(32.dp),
+                                modifier = Modifier.padding(40.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Icon(
-                                    painter = painterResource(id = R.drawable.ic_clock),
+                                    painter = painterResource(id = R.drawable.ic_check),
                                     contentDescription = null,
                                     tint = purple,
-                                    modifier = Modifier.size(64.dp)
+                                    modifier = Modifier.size(72.dp)
                                 )
-                                Spacer(modifier = Modifier.height(16.dp))
+                                Spacer(modifier = Modifier.height(20.dp))
                                 Text(
-                                    "No hay horarios para hoy",
-                                    fontSize = 18.sp,
+                                    "¡Excelente trabajo!",
+                                    fontSize = 20.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color.Gray
+                                    color = Color.Gray,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                 )
-                                Spacer(modifier = Modifier.height(8.dp))
+                                Spacer(modifier = Modifier.height(12.dp))
                                 Text(
-                                    "Crea un recordatorio para ver tus horarios aquí",
-                                    fontSize = 14.sp,
+                                    "Ya tomaste todos tus medicamentos de hoy",
+                                    fontSize = 16.sp,
                                     color = Color.Gray,
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                 )
@@ -510,10 +471,12 @@ fun DashboardScreen(navController: NavHostController, viewModel: ReminderViewMod
                         }
                     }
                 } else {
-                    items(todaySchedules) { schedule ->
+                    items(pendingSchedules) { schedule ->
                         TodayScheduleCard(
                             schedule = schedule,
-                            onMarkCompleted = { viewModel.markScheduleAsCompleted(schedule.id) }
+                            onMarkCompleted = { 
+                                viewModel.markScheduleAsCompleted(schedule.id)
+                            }
                         )
                     }
                 }
@@ -531,94 +494,90 @@ fun TodayScheduleCard(
     val green = Color(0xFF4CAF50)
     val orange = Color(0xFFFF9800)
 
-    // Solo mostrar si no está completado
-    if (!schedule.isCompleted) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 4.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            shape = RoundedCornerShape(16.dp),
-            elevation = CardDefaults.cardElevation(4.dp),
-            border = if (schedule.isOverdue) BorderStroke(1.dp, orange.copy(alpha = 0.3f)) else null
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 6.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(18.dp),
+        elevation = CardDefaults.cardElevation(6.dp),
+        border = if (schedule.isOverdue) BorderStroke(2.dp, orange.copy(alpha = 0.4f)) else null
+    ) {
+        Row(
+            modifier = Modifier.padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+            // Icono del medicamento
+            Icon(
+                painter = painterResource(id = R.drawable.ic_medication),
+                contentDescription = null,
+                tint = if (schedule.isOverdue) orange else purple,
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (schedule.isOverdue) orange.copy(alpha = 0.1f) else purple.copy(alpha = 0.1f)
+                    )
+                    .padding(14.dp)
+            )
+            
+            Spacer(modifier = Modifier.width(20.dp))
+            
+            // Información del horario
+            Column(
+                modifier = Modifier.weight(1f)
             ) {
-                // Icono del medicamento
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_medication),
-                    contentDescription = null,
-                    tint = if (schedule.isOverdue) orange else purple,
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(
-                            if (schedule.isOverdue) orange.copy(alpha = 0.1f) else purple.copy(alpha = 0.1f)
-                        )
-                        .padding(12.dp)
-                )
-                
-                Spacer(modifier = Modifier.width(16.dp))
-                
-                // Información del horario
-                Column(
-                    modifier = Modifier.weight(1f)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            schedule.medicationName,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Black
-                        )
-                        
-                        if (schedule.isOverdue) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = orange.copy(alpha = 0.1f)),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text(
-                                    "Atrasado",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = orange,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
-                            }
+                    Text(
+                        schedule.medicationName,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black
+                    )
+                    
+                    if (schedule.isOverdue) {
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = orange.copy(alpha = 0.1f)),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text(
+                                "Atrasado",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = orange,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
                         }
                     }
-                    
-                    Spacer(modifier = Modifier.height(4.dp))
-                    
-                    Text(
-                        "${schedule.dosage} - ${schedule.time}",
-                        fontSize = 14.sp,
-                        color = Color.Gray
-                    )
                 }
                 
-                // Botón de completar
-                IconButton(
-                    onClick = onMarkCompleted,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(green.copy(alpha = 0.1f))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = "Marcar como completado",
-                        tint = green,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
+                Spacer(modifier = Modifier.height(6.dp))
+                
+                Text(
+                    "${schedule.dosage} - ${schedule.time}",
+                    fontSize = 16.sp,
+                    color = Color.Gray
+                )
+            }
+            
+            // Botón de completar
+            IconButton(
+                onClick = onMarkCompleted,
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(green.copy(alpha = 0.1f))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "Marcar como completado",
+                    tint = green,
+                    modifier = Modifier.size(22.dp)
+                )
             }
         }
     }
-    // No mostrar nada si está completado (no retornar ningún composable)
 }

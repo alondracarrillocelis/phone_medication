@@ -73,7 +73,7 @@ class SimpleRepository(context: Context) {
     
     suspend fun saveReminder(reminder: Reminder): Result<String> {
         return try {
-            Log.d("SimpleRepository", "Guardando recordatorio: ${reminder.medicationName}")
+            Log.d("SimpleRepository", "Guardando recordatorio: ${reminder.name}")
             val id = dbHelper.insertReminder(reminder)
             Log.d("SimpleRepository", "Recordatorio guardado con ID: $id")
             Result.success(id.toString())
@@ -104,7 +104,7 @@ class SimpleRepository(context: Context) {
     
     suspend fun updateReminder(reminder: Reminder): Result<Unit> {
         return try {
-            Log.d("SimpleRepository", "Actualizando recordatorio: ${reminder.medicationName}")
+            Log.d("SimpleRepository", "Actualizando recordatorio: ${reminder.name}")
             // Para SQLite simple, eliminamos y recreamos el recordatorio
             dbHelper.deleteReminder(reminder.id)
             val newId = dbHelper.insertReminder(reminder)
@@ -210,16 +210,15 @@ class SimpleRepository(context: Context) {
             
             // 2. Crear recordatorio
             val reminder = Reminder(
-                medicationId = medicationId,
-                medicationName = formData.medication,
+                name = formData.name,
+                type = formData.type,
                 dosage = formData.dosage,
                 unit = formData.unit,
-                type = formData.type,
-                frequency = formData.frequency,
-                firstDoseTime = formData.firstDoseTime,
-                doseTime = formData.doseTime,
-                userId = userId,
-                totalDoses = if (formData.frequency == "Diariamente") 2 else 1
+                instructions = formData.instructions,
+                frequencyHours = formData.frequencyHours,
+                firstHour = formData.firstHour,
+                days = formData.days,
+                userId = userId
             )
             Log.d("SimpleRepository", "[createReminderWithSchedules] Guardando recordatorio...")
             val reminderId = saveReminder(reminder).getOrThrow()
@@ -227,20 +226,14 @@ class SimpleRepository(context: Context) {
             
             // 3. Crear horarios
             val schedules = mutableListOf<ReminderSchedule>()
-            // Primera dosis
-            schedules.add(
-                ReminderSchedule(
-                    reminderId = reminderId,
-                    time = formData.firstDoseTime,
-                    dosage = "${formData.dosage} ${formData.unit}"
-                )
-            )
-            // Segunda dosis (si es diariamente)
-            if (formData.frequency == "Diariamente") {
+            
+            // Calcular horarios basados en la frecuencia
+            val calculatedHours = reminder.calculateSchedule()
+            calculatedHours.forEach { hour ->
                 schedules.add(
                     ReminderSchedule(
                         reminderId = reminderId,
-                        time = formData.doseTime,
+                        time = hour,
                         dosage = "${formData.dosage} ${formData.unit}"
                     )
                 )

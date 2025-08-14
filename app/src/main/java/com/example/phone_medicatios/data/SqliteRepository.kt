@@ -95,23 +95,84 @@ class SqliteRepository(context: Context) {
         }
     }
 
-    suspend fun deleteMedication(medicationId: String): Result<Unit> {
+    // Métodos para el HybridRepository
+    suspend fun getMedications(): List<Medication> {
         return try {
-            Log.d("SqliteRepository", "Eliminando medicamento: $medicationId")
             withContext(Dispatchers.IO) {
-                medicationDao.deleteMedication(medicationId.toLong())
+                medicationDao.getAllMedications().map { entity ->
+                    Medication(
+                        id = entity.id.toString(),
+                        name = entity.name,
+                        dosage = entity.dosage,
+                        unit = entity.unit,
+                        type = entity.type,
+                        description = entity.description,
+                        instructions = entity.instructions,
+                        userId = entity.userId,
+                        createdAt = entity.createdAt,
+                        isActive = entity.isActive,
+                        totalReminders = entity.totalReminders
+                    )
+                }
             }
-            Log.d("SqliteRepository", "Medicamento eliminado exitosamente")
-            Result.success(Unit)
         } catch (e: Exception) {
-            Log.e("SqliteRepository", "Error al eliminar medicamento", e)
-            Result.failure(e)
+            Log.e("SqliteRepository", "Error obteniendo medicamentos: ${e.message}")
+            emptyList()
         }
     }
-
-    suspend fun updateMedication(medication: Medication): Result<Unit> {
+    
+    suspend fun getMedicationById(id: String): Medication? {
         return try {
-            Log.d("SqliteRepository", "Actualizando medicamento: ${medication.name}")
+            withContext(Dispatchers.IO) {
+                val entity = medicationDao.getMedicationById(id.toLong())
+                entity?.let {
+                    Medication(
+                        id = it.id.toString(),
+                        name = it.name,
+                        dosage = it.dosage,
+                        unit = it.unit,
+                        type = it.type,
+                        description = it.description,
+                        instructions = it.instructions,
+                        userId = it.userId,
+                        createdAt = it.createdAt,
+                        isActive = it.isActive,
+                        totalReminders = it.totalReminders
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("SqliteRepository", "Error obteniendo medicamento por ID: ${e.message}")
+            null
+        }
+    }
+    
+    suspend fun addMedication(medication: Medication): String? {
+        return try {
+            val entity = MedicationEntity(
+                name = medication.name,
+                dosage = medication.dosage,
+                unit = medication.unit,
+                type = medication.type,
+                description = medication.description,
+                instructions = medication.instructions,
+                userId = medication.userId,
+                createdAt = medication.createdAt,
+                isActive = medication.isActive,
+                totalReminders = medication.totalReminders
+            )
+            val id = withContext(Dispatchers.IO) {
+                medicationDao.insertMedication(entity)
+            }
+            id.toString()
+        } catch (e: Exception) {
+            Log.e("SqliteRepository", "Error agregando medicamento: ${e.message}")
+            null
+        }
+    }
+    
+    suspend fun updateMedication(medication: Medication): Boolean {
+        return try {
             val entity = MedicationEntity(
                 id = medication.id.toLong(),
                 name = medication.name,
@@ -128,11 +189,36 @@ class SqliteRepository(context: Context) {
             withContext(Dispatchers.IO) {
                 medicationDao.updateMedication(entity)
             }
-            Log.d("SqliteRepository", "Medicamento actualizado exitosamente")
-            Result.success(Unit)
+            true
         } catch (e: Exception) {
-            Log.e("SqliteRepository", "Error al actualizar medicamento", e)
-            Result.failure(e)
+            Log.e("SqliteRepository", "Error actualizando medicamento: ${e.message}")
+            false
+        }
+    }
+    
+    suspend fun updateMedicationId(oldId: String, newId: String): Boolean {
+        return try {
+            withContext(Dispatchers.IO) {
+                medicationDao.updateMedicationId(oldId.toLong(), newId.toLong())
+            }
+            true
+        } catch (e: Exception) {
+            Log.e("SqliteRepository", "Error actualizando ID de medicamento: ${e.message}")
+            false
+        }
+    }
+    
+    suspend fun deleteMedication(medicationId: String): Boolean {
+        return try {
+            Log.d("SqliteRepository", "Eliminando medicamento: $medicationId")
+            withContext(Dispatchers.IO) {
+                medicationDao.deleteMedication(medicationId.toLong())
+            }
+            Log.d("SqliteRepository", "Medicamento eliminado exitosamente")
+            true
+        } catch (e: Exception) {
+            Log.e("SqliteRepository", "Error al eliminar medicamento", e)
+            false
         }
     }
 
@@ -140,24 +226,22 @@ class SqliteRepository(context: Context) {
 
     suspend fun saveReminder(reminder: Reminder): Result<String> {
         return try {
-            Log.d("SqliteRepository", "Guardando recordatorio: ${reminder.medicationName}")
+            Log.d("SqliteRepository", "Guardando recordatorio: ${reminder.name}")
             val entity = ReminderEntity(
-                medicationId = reminder.medicationId.toLongOrNull() ?: 0L,
-                medicationName = reminder.medicationName,
-                dosage = reminder.dosage,
-                unit = reminder.unit,
+                medicationId = 0L, // Valor por defecto ya que no tenemos medicationId en el nuevo modelo
+                medicationName = reminder.name,
                 type = reminder.type,
-                frequency = reminder.frequency,
-                firstDoseTime = reminder.firstDoseTime,
-                doseTime = reminder.doseTime,
-                hoursBetweenDoses = reminder.hoursBetweenDoses,
-                selectedDays = reminder.selectedDays,
-                cycleWeeks = reminder.cycleWeeks,
+                dosage = reminder.dosage.toString(),
+                unit = reminder.unit,
+                instructions = reminder.instructions,
+                frequencyHours = reminder.frequencyHours.toString(),
+                firstDoseTime = reminder.firstHour,
+                selectedDays = reminder.days.joinToString(","),
                 userId = reminder.userId,
                 createdAt = reminder.createdAt,
-                isActive = reminder.isActive,
-                totalDoses = reminder.totalDoses,
-                completedDoses = reminder.completedDoses
+                isActive = reminder.active,
+                totalDoses = reminder.getTotalDosesCount(),
+                completedDoses = reminder.completedDoses.joinToString(",")
             )
             val id = withContext(Dispatchers.IO) {
                 reminderDao.insertReminder(entity)
@@ -174,76 +258,33 @@ class SqliteRepository(context: Context) {
         Log.d("SqliteRepository", "Obteniendo recordatorios para userId: $userId")
         return reminderDao.getRemindersByUserId(userId).map { entities ->
             entities.map { entity ->
+                // Parsear las dosis completadas desde string
+                val completedDosesList = entity.completedDoses.split(",")
+                    .filter { it.isNotBlank() }
+                    .mapNotNull { it.toIntOrNull() }
+                
                 Reminder(
                     id = entity.id.toString(),
-                    medicationId = entity.medicationId.toString(),
-                    medicationName = entity.medicationName,
-                    dosage = entity.dosage,
-                    unit = entity.unit,
+                    name = entity.medicationName,
                     type = entity.type,
-                    frequency = entity.frequency,
-                                    firstDoseTime = entity.firstDoseTime,
-                doseTime = entity.doseTime,
-                hoursBetweenDoses = entity.hoursBetweenDoses,
-                selectedDays = entity.selectedDays,
-                cycleWeeks = entity.cycleWeeks,
+                    dosage = entity.dosage.toDoubleOrNull() ?: 0.0,
+                    unit = entity.unit,
+                    instructions = entity.instructions,
+                    frequencyHours = entity.frequencyHours.toIntOrNull() ?: 8,
+                    firstHour = entity.firstDoseTime,
+                    days = entity.selectedDays.split(",").filter { it.isNotBlank() },
                     userId = entity.userId,
                     createdAt = entity.createdAt,
-                    isActive = entity.isActive,
-                    totalDoses = entity.totalDoses,
-                    completedDoses = entity.completedDoses
+                    active = entity.isActive,
+                    completedDoses = completedDosesList
                 )
             }
         }
     }
 
-    suspend fun deleteReminder(reminderId: String): Result<Unit> {
-        return try {
-            Log.d("SqliteRepository", "Eliminando recordatorio: $reminderId")
-            withContext(Dispatchers.IO) {
-                reminderDao.deleteReminder(reminderId.toLong())
-                scheduleDao.deleteSchedulesByReminderId(reminderId.toLong())
-            }
-            Log.d("SqliteRepository", "Recordatorio eliminado exitosamente")
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Log.e("SqliteRepository", "Error al eliminar recordatorio", e)
-            Result.failure(e)
-        }
-    }
 
-    suspend fun updateReminder(reminder: Reminder): Result<Unit> {
-        return try {
-            Log.d("SqliteRepository", "Actualizando recordatorio: ${reminder.medicationName}")
-            val entity = ReminderEntity(
-                id = reminder.id.toLong(),
-                medicationId = reminder.medicationId.toLongOrNull() ?: 0L,
-                medicationName = reminder.medicationName,
-                dosage = reminder.dosage,
-                unit = reminder.unit,
-                type = reminder.type,
-                frequency = reminder.frequency,
-                firstDoseTime = reminder.firstDoseTime,
-                doseTime = reminder.doseTime,
-                hoursBetweenDoses = reminder.hoursBetweenDoses,
-                selectedDays = reminder.selectedDays,
-                cycleWeeks = reminder.cycleWeeks,
-                userId = reminder.userId,
-                createdAt = reminder.createdAt,
-                isActive = reminder.isActive,
-                totalDoses = reminder.totalDoses,
-                completedDoses = reminder.completedDoses
-            )
-            withContext(Dispatchers.IO) {
-                reminderDao.updateReminder(entity)
-            }
-            Log.d("SqliteRepository", "Recordatorio actualizado exitosamente")
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Log.e("SqliteRepository", "Error al actualizar recordatorio", e)
-            Result.failure(e)
-        }
-    }
+
+
 
     // ==================== HORARIOS ====================
 
@@ -351,6 +392,238 @@ class SqliteRepository(context: Context) {
         }
     }
 
+    // ==================== MÉTODOS PARA HYBRID REPOSITORY ====================
+    
+    suspend fun getReminders(): List<Reminder> {
+        return try {
+                                withContext(Dispatchers.IO) {
+                        reminderDao.getAllReminders().map { entity ->
+                            Reminder(
+                                id = entity.id.toString(),
+                                name = entity.medicationName,
+                                type = entity.type,
+                                dosage = entity.dosage.toDoubleOrNull() ?: 0.0,
+                                unit = entity.unit,
+                                instructions = entity.instructions,
+                                frequencyHours = entity.frequencyHours.toIntOrNull() ?: 8,
+                                firstHour = entity.firstDoseTime,
+                                days = entity.selectedDays.split(",").filter { it.isNotBlank() },
+                                userId = entity.userId,
+                                createdAt = entity.createdAt,
+                                active = entity.isActive,
+                                completedDoses = entity.completedDoses.split(",")
+                                    .filter { it.isNotBlank() }
+                                    .mapNotNull { it.toIntOrNull() }
+                            )
+                        }
+                    }
+        } catch (e: Exception) {
+            Log.e("SqliteRepository", "Error obteniendo recordatorios: ${e.message}")
+            emptyList()
+        }
+    }
+    
+    suspend fun getReminderById(id: String): Reminder? {
+        return try {
+            withContext(Dispatchers.IO) {
+                val entity = reminderDao.getReminderById(id.toLong())
+                entity?.let {
+                    Reminder(
+                        id = it.id.toString(),
+                        name = it.medicationName,
+                        type = it.type,
+                        dosage = it.dosage.toDoubleOrNull() ?: 0.0,
+                        unit = it.unit,
+                        instructions = it.instructions,
+                        frequencyHours = it.frequencyHours.toIntOrNull() ?: 8,
+                        firstHour = it.firstDoseTime,
+                        days = it.selectedDays.split(",").filter { it.isNotBlank() },
+                        userId = it.userId,
+                        createdAt = it.createdAt,
+                        active = it.isActive,
+                        completedDoses = it.completedDoses.split(",")
+                            .filter { it.isNotBlank() }
+                            .mapNotNull { it.toIntOrNull() }
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("SqliteRepository", "Error obteniendo recordatorio por ID: ${e.message}")
+            null
+        }
+    }
+    
+    suspend fun addReminder(reminder: Reminder): String? {
+        return try {
+            val entity = ReminderEntity(
+                medicationId = 0L, // Valor por defecto
+                medicationName = reminder.name,
+                type = reminder.type,
+                dosage = reminder.dosage.toString(),
+                unit = reminder.unit,
+                instructions = reminder.instructions,
+                frequencyHours = reminder.frequencyHours.toString(),
+                firstDoseTime = reminder.firstHour,
+                selectedDays = reminder.days.joinToString(","),
+                userId = reminder.userId,
+                createdAt = reminder.createdAt,
+                isActive = reminder.active,
+                totalDoses = reminder.getTotalDosesCount(),
+                completedDoses = reminder.completedDoses.joinToString(",")
+            )
+            val id = withContext(Dispatchers.IO) {
+                reminderDao.insertReminder(entity)
+            }
+            id.toString()
+        } catch (e: Exception) {
+            Log.e("SqliteRepository", "Error agregando recordatorio: ${e.message}")
+            null
+        }
+    }
+    
+    suspend fun updateReminder(reminder: Reminder): Boolean {
+        return try {
+            val entity = ReminderEntity(
+                id = reminder.id.toLong(),
+                medicationId = 0L, // Valor por defecto
+                medicationName = reminder.name,
+                type = reminder.type,
+                dosage = reminder.dosage.toString(),
+                unit = reminder.unit,
+                instructions = reminder.instructions,
+                frequencyHours = reminder.frequencyHours.toString(),
+                firstDoseTime = reminder.firstHour,
+                selectedDays = reminder.days.joinToString(","),
+                userId = reminder.userId,
+                createdAt = reminder.createdAt,
+                isActive = reminder.active,
+                totalDoses = reminder.getTotalDosesCount(),
+                completedDoses = reminder.completedDoses.joinToString(",")
+            )
+            withContext(Dispatchers.IO) {
+                reminderDao.updateReminder(entity)
+            }
+            true
+        } catch (e: Exception) {
+            Log.e("SqliteRepository", "Error actualizando recordatorio: ${e.message}")
+            false
+        }
+    }
+    
+    suspend fun updateReminderId(oldId: String, newId: String): Boolean {
+        return try {
+            withContext(Dispatchers.IO) {
+                reminderDao.updateReminderId(oldId.toLong(), newId.toLong())
+            }
+            true
+        } catch (e: Exception) {
+            Log.e("SqliteRepository", "Error actualizando ID de recordatorio: ${e.message}")
+            false
+        }
+    }
+    
+    suspend fun deleteReminder(reminderId: String): Boolean {
+        return try {
+            withContext(Dispatchers.IO) {
+                reminderDao.deleteReminder(reminderId.toLong())
+            }
+            true
+        } catch (e: Exception) {
+            Log.e("SqliteRepository", "Error eliminando recordatorio: ${e.message}")
+            false
+        }
+    }
+    
+    suspend fun markReminderCompleted(reminderId: String, completed: Boolean): Boolean {
+        return try {
+            withContext(Dispatchers.IO) {
+                reminderDao.markReminderCompleted(reminderId.toLong(), completed)
+            }
+            true
+        } catch (e: Exception) {
+            Log.e("SqliteRepository", "Error marcando recordatorio como completado: ${e.message}")
+            false
+        }
+    }
+    
+    suspend fun markDoseAsCompleted(reminderId: String, doseIndex: Int): Boolean {
+        return try {
+            withContext(Dispatchers.IO) {
+                // Obtener el recordatorio actual
+                val reminder = reminderDao.getReminderById(reminderId.toLong())
+                if (reminder != null) {
+                    // Parsear las dosis completadas actuales
+                    val currentCompletedDoses = reminder.completedDoses.split(",")
+                        .filter { it.isNotBlank() }
+                        .mapNotNull { it.toIntOrNull() }
+                        .toMutableList()
+                    
+                    // Toggle la dosis específica
+                    if (currentCompletedDoses.contains(doseIndex)) {
+                        currentCompletedDoses.remove(doseIndex)
+                    } else {
+                        currentCompletedDoses.add(doseIndex)
+                    }
+                    
+                    // Actualizar el recordatorio con las nuevas dosis completadas
+                    val updatedCompletedDoses = currentCompletedDoses.joinToString(",")
+                    
+                    reminderDao.updateReminderCompletedDoses(
+                        reminderId.toLong(),
+                        updatedCompletedDoses
+                    )
+                    
+                    Log.d("SqliteRepository", "Dosis $doseIndex marcada como completada para recordatorio $reminderId")
+                }
+            }
+            true
+        } catch (e: Exception) {
+            Log.e("SqliteRepository", "Error marcando dosis como completada: ${e.message}")
+            false
+        }
+    }
+    
+    suspend fun getTodaySchedules(): List<TodaySchedule> {
+        return try {
+            withContext(Dispatchers.IO) {
+                val today = Date()
+                scheduleDao.getTodaySchedules(today).map { entity ->
+                    TodaySchedule(
+                        id = entity.id.toString(),
+                        reminderId = entity.reminderId.toString(),
+                        medicationName = "", // TODO: Obtener nombre del medicamento desde el reminder
+                        dosage = entity.dosage,
+                        time = entity.time,
+                        isCompleted = entity.isCompleted,
+                        isOverdue = false // TODO: Implementar lógica de atraso
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("SqliteRepository", "Error obteniendo horarios de hoy: ${e.message}")
+            emptyList()
+        }
+    }
+    
+    suspend fun addOrUpdateTodaySchedule(schedule: TodaySchedule): Boolean {
+        return try {
+            val entity = ReminderScheduleEntity(
+                reminderId = schedule.reminderId.toLong(),
+                dosage = schedule.dosage,
+                time = schedule.time,
+                isCompleted = schedule.isCompleted,
+                scheduledDate = Date()
+            )
+            withContext(Dispatchers.IO) {
+                scheduleDao.insertSchedule(entity)
+            }
+            true
+        } catch (e: Exception) {
+            Log.e("SqliteRepository", "Error agregando/actualizando horario: ${e.message}")
+            false
+        }
+    }
+    
     // ==================== UTILIDADES ====================
 
     suspend fun createReminderWithSchedules(
@@ -367,19 +640,15 @@ class SqliteRepository(context: Context) {
             
             // 2. Crear recordatorio
             val reminder = Reminder(
-                medicationId = medicationId,
-                medicationName = formData.medication,
+                name = formData.name,
+                type = formData.type,
                 dosage = formData.dosage,
                 unit = formData.unit,
-                type = formData.type,
-                frequency = formData.frequency,
-                firstDoseTime = formData.firstDoseTime,
-                doseTime = formData.doseTime,
-                hoursBetweenDoses = formData.hoursBetweenDoses,
-                selectedDays = formData.selectedDays.joinToString(","),
-                cycleWeeks = formData.cycleWeeks,
-                userId = userId,
-                totalDoses = if (formData.doseTime.isNotBlank()) 2 else 1
+                instructions = formData.instructions,
+                frequencyHours = formData.frequencyHours,
+                firstHour = formData.firstHour,
+                days = formData.days,
+                userId = userId
             )
             
             val reminderId = saveReminder(reminder).getOrThrow()
@@ -392,17 +661,18 @@ class SqliteRepository(context: Context) {
             schedules.add(
                 ReminderSchedule(
                     reminderId = reminderId,
-                    time = formData.firstDoseTime,
+                    time = formData.firstHour,
                     dosage = "${formData.dosage} ${formData.unit}"
                 )
             )
             
-            // Segunda dosis (si hay segunda dosis)
-            if (formData.doseTime.isNotBlank()) {
+            // Calcular horarios basados en frecuencia
+            val calculatedHours = reminder.calculateSchedule()
+            calculatedHours.forEach { hour ->
                 schedules.add(
                     ReminderSchedule(
                         reminderId = reminderId,
-                        time = formData.doseTime,
+                        time = hour,
                         dosage = "${formData.dosage} ${formData.unit}"
                     )
                 )

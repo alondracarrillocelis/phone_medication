@@ -13,34 +13,33 @@ import com.example.phone_medicatios.data.ReminderFormData
 import com.example.phone_medicatios.data.TodaySchedule
 import com.example.phone_medicatios.data.Repository
 import com.example.phone_medicatios.data.FirebaseRepository
+import com.example.phone_medicatios.data.HybridRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
-
+    
 data class ReminderEntity(
     var id: String = "",
-    val name: String = "",
-    val dosage: String = "",
-    val unit: String = "",
-    val type: String = "",
-    val description: String = "",
-    val instructions: String = "",
-    val frequency: String = "",
-    val hour: String = "", // primera dosis
-    val secondHour: String = "", // segunda dosis opcional
-    val days: List<String> = emptyList(),
-    val cycleWeeks: String = "",
+    val name: String = "",                // Nombre del medicamento
+    val type: String = "",                // Tipo (Tableta, Jarabe, etc.)
+    val dosage: Double = 0.0,             // Dosis
+    val unit: String = "",                // Unidad (mg, ml, etc.)
+    val instructions: String = "",        // Instrucciones
+    val frequencyHours: Int = 8,          // Frecuencia (cada X horas)
+    val firstHour: String = "",           // Primera hora
+    val days: List<String> = emptyList(), // Días seleccionados
     val userId: String = "",
     val createdAt: Date = Date(),
-    val completed: Boolean = false // para marcar que fue tomado
+    val completed: Boolean = false,       // Si está completado
+    val active: Boolean = true            // Si está activo
 )
 
 class ReminderViewModel(application: Application) : AndroidViewModel(application) {
 
-    // Firebase repository
-    private val repository: Repository = FirebaseRepository()
+    // Hybrid repository (Firebase + SQLite)
+    private val repository: Repository = HybridRepository(application.applicationContext)
 
     private val _medications = MutableStateFlow<List<Medication>>(emptyList())
     val medications: StateFlow<List<Medication>> = _medications
@@ -73,12 +72,167 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
         get() = _medications.value.size
 
     init {
+        // Cargar datos iniciales de forma segura
         loadInitialData()
+        
+        // Verificar si es un nuevo día y resetear dosis si es necesario
+        checkAndResetDailyDoses()
+    }
+
+    // Cargar datos iniciales de forma segura
+    private fun loadInitialData() {
+        Log.d("ReminderViewModel", "=== CARGANDO DATOS INICIALES ===")
+        
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                
+                // Cargar datos iniciales usando métodos suspend
+                val medications = repository.getMedications()
+                val reminders = repository.getReminders()
+                val todaySchedules = repository.getTodaySchedules()
+                
+                // Actualizar estados
+                _medications.value = medications
+                _reminders.value = reminders
+                _todaySchedules.value = todaySchedules
+                
+                // Actualizar estadísticas
+                updateStats(medications, reminders)
+                
+                Log.d("ReminderViewModel", "Datos iniciales cargados: ${medications.size} medicamentos, ${reminders.size} recordatorios")
+                
+                // Inicializar flujos en tiempo real después de cargar datos iniciales
+                initializeRealTimeData()
+                
+            } catch (e: Exception) {
+                Log.e("ReminderViewModel", "Error cargando datos iniciales: ${e.message}", e)
+                _errorMessage.value = "Error al cargar datos: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+    
+    // Inicializar flujos de datos en tiempo real
+    private fun initializeRealTimeData() {
+        Log.d("ReminderViewModel", "=== INICIANDO FLUJOS EN TIEMPO REAL ===")
+        
+        try {
+            // Observar medicamentos en tiempo real
+            viewModelScope.launch {
+                try {
+                    repository.getMedicationsFlow().collect { medications ->
+                        Log.d("ReminderViewModel", "Medicamentos actualizados en tiempo real: ${medications.size}")
+                        _medications.value = medications
+                        updateStats(medications, _reminders.value)
+                    }
+                } catch (e: Exception) {
+                    Log.e("ReminderViewModel", "Error en flujo de medicamentos: ${e.message}", e)
+                }
+            }
+            
+            // Observar recordatorios en tiempo real
+            viewModelScope.launch {
+                try {
+                    repository.getRemindersFlow().collect { reminders ->
+                        Log.d("ReminderViewModel", "Recordatorios actualizados en tiempo real: ${reminders.size}")
+                        _reminders.value = reminders
+                        updateStats(_medications.value, reminders)
+                    }
+                } catch (e: Exception) {
+                    Log.e("ReminderViewModel", "Error en flujo de recordatorios: ${e.message}", e)
+                }
+            }
+            
+            // Observar horarios de hoy en tiempo real
+            viewModelScope.launch {
+                try {
+                    (repository as HybridRepository).getTodaySchedulesFlow().collect { schedules ->
+                        Log.d("ReminderViewModel", "Horarios de hoy actualizados en tiempo real: ${schedules.size}")
+                        _todaySchedules.value = schedules
+                    }
+                } catch (e: Exception) {
+                    Log.e("ReminderViewModel", "Error en flujo de horarios: ${e.message}", e)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("ReminderViewModel", "Error inicializando flujos en tiempo real: ${e.message}", e)
+        }
+    }
+    
+
+
+    // Verificar y resetear dosis al cambiar de día
+    private fun checkAndResetDailyDoses() {
+        viewModelScope.launch {
+            try {
+                val lastResetDate = getApplication<Application>().getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                    .getString("last_dose_reset_date", "") ?: ""
+                
+                val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                    .format(java.util.Date())
+                
+                if (lastResetDate != today) {
+                    Log.d("ReminderViewModel", "Nuevo día detectado, reseteando dosis...")
+                    
+                    // Resetear dosis
+                    (repository as HybridRepository).resetDailyDoses()
+                    
+                    // Guardar fecha de reseteo
+                    getApplication<Application>().getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                        .edit()
+                        .putString("last_dose_reset_date", today)
+                        .apply()
+                    
+                    Log.d("ReminderViewModel", "Dosis reseteadas para el nuevo día")
+                }
+            } catch (e: Exception) {
+                Log.e("ReminderViewModel", "Error verificando reseteo de dosis: ${e.message}")
+            }
+        }
+    }
+    
+    // Función para actualizar estadísticas
+    private fun updateStats(medications: List<Medication>, reminders: List<Reminder>) {
+        val activeReminders = reminders.count { it.active }
+        
+        // Calcular dosis completadas y pendientes basadas en dosis individuales
+        var totalCompletedDoses = 0
+        var totalPendingDoses = 0
+        
+        reminders.forEach { reminder ->
+            if (reminder.active) {
+                val completedDoses = reminder.getCompletedDosesCount()
+                val totalDoses = reminder.getTotalDosesCount()
+                totalCompletedDoses += completedDoses
+                totalPendingDoses += (totalDoses - completedDoses)
+            }
+        }
+        
+        val stats = MedicationStats(
+            totalMedications = medications.size,
+            activeReminders = activeReminders,
+            completedToday = totalCompletedDoses,
+            pendingToday = totalPendingDoses
+        )
+        
+        _stats.value = stats
+        Log.d("ReminderViewModel", "Estadísticas actualizadas: $stats (dosis completadas: $totalCompletedDoses, pendientes: $totalPendingDoses)")
+    }
+
+    fun updateFormData(newData: ReminderFormData) {
+        _formData.value = newData
+        _errorMessage.value = ""
     }
 
     fun clearMessages() {
         _errorMessage.value = ""
         _successMessage.value = ""
+    }
+
+    fun setErrorMessage(message: String) {
+        _errorMessage.value = message
     }
 
     fun resetNavigation() {
@@ -89,240 +243,14 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
         return _shouldNavigateToDashboard.value
     }
 
-    fun refreshData() {
-        Log.d("ReminderViewModel", "Refrescando datos...")
-        loadInitialData()
-    }
-    
-    fun forceRefreshData() {
-        Log.d("ReminderViewModel", "Forzando refresco de datos...")
-        viewModelScope.launch {
-            try {
-                _isLoading.value = true
-                
-                // Limpiar datos actuales
-                _medications.value = emptyList()
-                _reminders.value = emptyList()
-                _todaySchedules.value = emptyList()
-                _stats.value = MedicationStats()
-                
-                // Recargar desde Firebase
-                loadInitialData()
-                
-            } catch (e: Exception) {
-                Log.e("ReminderViewModel", "Error en forceRefreshData: ${e.message}", e)
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
-
-    fun updateFormData(newData: ReminderFormData) {
-        _formData.value = newData
-        _errorMessage.value = ""
-    }
-
-    fun loadMedications() {
-        viewModelScope.launch {
-            try {
-                _isLoading.value = true
-                
-                // Cargar solo medicamentos desde Firebase
-                val medications = repository.getMedications()
-                _medications.value = medications
-                
-                // Actualizar estadísticas
-                val currentStats = _stats.value
-                _stats.value = currentStats.copy(
-                    totalMedications = medications.size
-                )
-                
-                Log.d("ReminderViewModel", "Medicamentos cargados: ${medications.size}")
-                
-            } catch (e: Exception) {
-                Log.e("ReminderViewModel", "Error cargando medicamentos: ${e.message}")
-                _errorMessage.value = "Error al cargar medicamentos: ${e.message}"
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
-
-    fun loadReminders() {
-        viewModelScope.launch {
-            try {
-                _isLoading.value = true
-                
-                // Cargar solo recordatorios desde Firebase
-                val reminders = repository.getReminders()
-                _reminders.value = reminders
-                
-                // Actualizar estadísticas
-                val activeReminders = reminders.count { it.isActive }
-                val currentStats = _stats.value
-                _stats.value = currentStats.copy(
-                    activeReminders = activeReminders
-                )
-                
-                Log.d("ReminderViewModel", "Recordatorios cargados: ${reminders.size}")
-                
-            } catch (e: Exception) {
-                Log.e("ReminderViewModel", "Error cargando recordatorios: ${e.message}")
-                _errorMessage.value = "Error al cargar recordatorios: ${e.message}"
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
-
-    private fun loadInitialData() {
-        viewModelScope.launch {
-            try {
-                _isLoading.value = true
-                
-                Log.d("ReminderViewModel", "Iniciando carga de datos desde Firebase...")
-                
-                // Cargar datos desde Firebase
-                val medications = repository.getMedications()
-                Log.d("ReminderViewModel", "Medicamentos cargados: ${medications.size}")
-                
-                val reminders = repository.getReminders()
-                Log.d("ReminderViewModel", "Recordatorios cargados: ${reminders.size}")
-                
-                val todaySchedules = repository.getTodaySchedules()
-                Log.d("ReminderViewModel", "Horarios de hoy cargados: ${todaySchedules.size}")
-                
-                // Calcular estadísticas basadas en los datos reales
-                val activeReminders = reminders.count { it.isActive }
-                val completedToday = reminders.count { it.completedDoses > 0 }
-                val pendingToday = activeReminders - completedToday
-                
-                val stats = MedicationStats(
-                    totalMedications = medications.size,
-                    activeReminders = activeReminders,
-                    completedToday = completedToday,
-                    pendingToday = pendingToday
-                )
-                
-                // Actualizar todos los estados
-                _medications.value = medications
-                _reminders.value = reminders
-                _todaySchedules.value = todaySchedules
-                _stats.value = stats
-                
-                Log.d("ReminderViewModel", "Datos cargados desde Firebase: ${medications.size} medicamentos, ${reminders.size} recordatorios")
-                Log.d("ReminderViewModel", "Estadísticas actualizadas: ${stats.totalMedications} medicamentos, ${stats.activeReminders} recordatorios activos")
-                Log.d("ReminderViewModel", "Recordatorios activos: $activeReminders, Completados hoy: $completedToday, Pendientes: $pendingToday")
-                
-            } catch (e: Exception) {
-                Log.e("ReminderViewModel", "Error cargando datos desde Firebase: ${e.message}", e)
-                _errorMessage.value = "Error al cargar datos: ${e.message}"
-                
-                // Cargar datos de muestra como fallback
-                loadSampleData()
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
-
-    private fun loadSampleData() {
-        // Load sample data for testing when Firebase is not available
-        val sampleReminders = listOf(
-            ReminderEntity(
-                id = "1",
-                name = "Paracetamol",
-                dosage = "500",
-                unit = "mg",
-                type = "Tableta",
-                frequency = "Diariamente",
-                hour = "8:00 a.m.",
-                secondHour = "8:00 p.m.",
-                userId = "user1",
-                completed = false
-            ),
-            ReminderEntity(
-                id = "2",
-                name = "Ibuprofeno",
-                dosage = "400",
-                unit = "mg",
-                type = "Tableta",
-                frequency = "Diariamente",
-                hour = "9:00 a.m.",
-                secondHour = "9:00 p.m.",
-                userId = "user1",
-                completed = true
-            )
-        )
-
-        // Convert to different data types
-        val medicationList = sampleReminders.map { reminder ->
-            Medication(
-                id = reminder.id,
-                name = reminder.name,
-                dosage = reminder.dosage,
-                unit = reminder.unit,
-                type = reminder.type,
-                description = reminder.description,
-                instructions = reminder.instructions,
-                userId = reminder.userId,
-                createdAt = reminder.createdAt,
-                isActive = !reminder.completed
-            )
-        }
-        _medications.value = medicationList
-
-        val reminderList = sampleReminders.map { reminder ->
-            Reminder(
-                id = reminder.id,
-                medicationId = reminder.id,
-                medicationName = reminder.name,
-                dosage = reminder.dosage,
-                unit = reminder.unit,
-                type = reminder.type,
-                frequency = reminder.frequency,
-                firstDoseTime = reminder.hour,
-                doseTime = reminder.secondHour,
-                userId = reminder.userId,
-                createdAt = reminder.createdAt,
-                isActive = !reminder.completed,
-                totalDoses = if (reminder.frequency == "Diariamente") 2 else 1,
-                completedDoses = if (reminder.completed) 1 else 0
-            )
-        }
-        _reminders.value = reminderList
-
-        val todaySchedulesList = sampleReminders.map { reminder ->
-            TodaySchedule(
-                id = reminder.id,
-                reminderId = reminder.id,
-                medicationName = reminder.name,
-                dosage = reminder.dosage,
-                time = reminder.hour,
-                isCompleted = reminder.completed,
-                isOverdue = false
-            )
-        }
-        _todaySchedules.value = todaySchedulesList
-
-        // Update stats
-        val completedToday = sampleReminders.count { it.completed }
-        val pendingToday = sampleReminders.size - completedToday
-
-        _stats.value = MedicationStats(
-            totalMedications = sampleReminders.size,
-            activeReminders = sampleReminders.size,
-            completedToday = completedToday,
-            pendingToday = pendingToday
-        )
-    }
-
     fun addMedication(name: String, dosage: String, unit: String, type: String) {
         val medication = Medication(
             name = name,
             dosage = dosage,
             unit = unit,
             type = type,
+            description = "", // Campo requerido pero vacío por defecto
+            instructions = "", // Campo requerido pero vacío por defecto
             userId = "user1",
             createdAt = Date(),
             isActive = true
@@ -338,8 +266,10 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
                 if (medicationId != null) {
                     _successMessage.value = "¡Medicamento añadido exitosamente!"
                     
-                    // Recargar todos los datos desde Firebase para asegurar sincronización
-                    loadInitialData()
+                    // Recargar datos inmediatamente
+                    // loadData() // This line is removed as data is now real-time
+                    
+                    Log.d("ReminderViewModel", "Medicamento agregado: $name")
                 } else {
                     _errorMessage.value = "Error al guardar en Firebase"
                 }
@@ -356,44 +286,43 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
         if (!validateCompleteForm(data)) return
 
         _isLoading.value = true
-        Log.d("ReminderViewModel", "Iniciando proceso de guardado para: ${data.name}")
+        Log.d("ReminderViewModel", "Guardando recordatorio: ${data.name}")
 
         viewModelScope.launch {
             try {
                 // Crear el recordatorio
                 val newReminder = Reminder(
                     id = "", // Firebase generará el ID
-                    medicationId = "", // Se generará después
-                    medicationName = data.name,
+                    name = data.name,
+                    type = data.type,
                     dosage = data.dosage,
                     unit = data.unit,
-                    type = data.type,
-                    frequency = data.frequency,
-                    firstDoseTime = data.hour,
-                    doseTime = data.secondHour,
-                    userId = "user1", // Usar el mismo userId que el repositorio
+                    instructions = data.instructions,
+                    frequencyHours = data.frequencyHours,
+                    firstHour = data.firstHour,
+                    days = data.days,
+                    userId = "user1",
                     createdAt = data.createdAt,
-                    isActive = !data.completed,
-                    totalDoses = if (data.frequency == "Diariamente") 2 else 1,
-                    completedDoses = if (data.completed) 1 else 0
+                    completed = data.completed,
+                    active = data.active
                 )
-                
-                Log.d("ReminderViewModel", "Recordatorio creado, intentando guardar en Firebase...")
                 
                 // Guardar en Firebase
                 val reminderId = repository.addReminder(newReminder)
                 
                 if (reminderId != null) {
-                    Log.d("ReminderViewModel", "Recordatorio guardado exitosamente con ID: $reminderId")
+                    Log.d("ReminderViewModel", "Recordatorio guardado con ID: $reminderId")
                     _successMessage.value = "¡Recordatorio creado exitosamente!"
                     scheduleNotifications(context, data, reminderId)
                     _shouldNavigateToDashboard.value = true
                     
-                    // Recargar todos los datos desde Firebase para asegurar sincronización
-                    loadInitialData()
+                    // Recargar datos inmediatamente
+                    // loadData() // This line is removed as data is now real-time
+                    
+                    Log.d("ReminderViewModel", "Recordatorio agregado: ${data.name}")
                 } else {
-                    Log.e("ReminderViewModel", "Error: repository.addReminder retornó null")
-                    _errorMessage.value = "Error al guardar en Firebase - No se pudo crear el recordatorio"
+                    Log.e("ReminderViewModel", "Error: No se pudo crear el recordatorio")
+                    _errorMessage.value = "Error al guardar en Firebase"
                 }
             } catch (e: Exception) {
                 Log.e("ReminderViewModel", "Error al guardar recordatorio: ${e.message}", e)
@@ -412,17 +341,14 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
         _isLoading.value = true
 
         val reminderData = ReminderEntity(
-            name = data.medication,
+            name = data.name,
+            type = data.type,
             dosage = data.dosage,
             unit = data.unit,
-            type = data.type,
-            frequency = data.frequency,
-            hour = data.firstDoseTime,
-            secondHour = data.doseTime,
-            description = data.description,
             instructions = data.instructions,
-            cycleWeeks = data.cycleWeeks,
-            days = data.selectedDays
+            frequencyHours = data.frequencyHours,
+            firstHour = data.firstHour,
+            days = data.days
         )
 
         addMedication(reminderData, context)
@@ -437,17 +363,14 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
 
         val reminderData = ReminderEntity(
             id = reminderId,
-            name = data.medication,
+            name = data.name,
+            type = data.type,
             dosage = data.dosage,
             unit = data.unit,
-            type = data.type,
-            frequency = data.frequency,
-            hour = data.firstDoseTime,
-            secondHour = data.doseTime,
-            description = data.description,
             instructions = data.instructions,
-            cycleWeeks = data.cycleWeeks,
-            days = data.selectedDays
+            frequencyHours = data.frequencyHours,
+            firstHour = data.firstHour,
+            days = data.days
         )
 
         updateMedication(reminderData, context)
@@ -464,8 +387,10 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
                 if (success) {
                     _successMessage.value = "¡Medicamento eliminado exitosamente!"
                     
-                    // Recargar todos los datos desde Firebase para asegurar sincronización
-                    loadInitialData()
+                    // Recargar datos inmediatamente
+                    // loadData() // This line is removed as data is now real-time
+                    
+                    Log.d("ReminderViewModel", "Medicamento eliminado: $medicationId")
                 } else {
                     _errorMessage.value = "Error al eliminar de Firebase"
                 }
@@ -481,11 +406,11 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
     fun updateMedication(medicationId: String, formData: ReminderFormData) {
         val medication = Medication(
             id = medicationId,
-            name = formData.medication,
-            dosage = formData.dosage,
+            name = formData.name,
+            dosage = formData.dosage.toString(),
             unit = formData.unit,
             type = formData.type,
-            description = formData.description,
+            description = formData.instructions, // Usar instructions como description
             instructions = formData.instructions,
             userId = "user1",
             createdAt = Date(),
@@ -496,14 +421,12 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
 
         viewModelScope.launch {
             try {
-                kotlinx.coroutines.delay(500) // Simulate network delay
-                val currentList = _medications.value.toMutableList()
-                val index = currentList.indexOfFirst { it.id == medicationId }
-                if (index != -1) {
-                    currentList[index] = medication
-                    _medications.value = currentList
+                val success = repository.updateMedication(medication)
+                if (success) {
                     _successMessage.value = "¡Medicamento actualizado exitosamente!"
-                    loadInitialData() // Refresh all data
+                    // loadData() // Recargar datos - This line is removed as data is now real-time
+                } else {
+                    _errorMessage.value = "Error al actualizar en Firebase"
                 }
             } catch (e: Exception) {
                 _errorMessage.value = "Error al actualizar: ${e.message}"
@@ -525,32 +448,29 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
 
         viewModelScope.launch {
             try {
-                kotlinx.coroutines.delay(500) // Simulate network delay
+                val updatedReminder = Reminder(
+                    id = data.id,
+                    name = data.name,
+                    type = data.type,
+                    dosage = data.dosage,
+                    unit = data.unit,
+                    instructions = data.instructions,
+                    frequencyHours = data.frequencyHours,
+                    firstHour = data.firstHour,
+                    days = data.days,
+                    userId = data.userId,
+                    createdAt = data.createdAt,
+                    completed = data.completed,
+                    active = data.active
+                )
                 
-                val currentReminders = _reminders.value.toMutableList()
-                val index = currentReminders.indexOfFirst { it.id == data.id }
-                if (index != -1) {
-                    val updatedReminder = Reminder(
-                        id = data.id,
-                        medicationId = data.id,
-                        medicationName = data.name,
-                        dosage = data.dosage,
-                        unit = data.unit,
-                        type = data.type,
-                        frequency = data.frequency,
-                        firstDoseTime = data.hour,
-                        doseTime = data.secondHour,
-                        userId = data.userId,
-                        createdAt = data.createdAt,
-                        isActive = !data.completed,
-                        totalDoses = if (data.frequency == "Diariamente") 2 else 1,
-                        completedDoses = if (data.completed) 1 else 0
-                    )
-                    currentReminders[index] = updatedReminder
-                    _reminders.value = currentReminders
+                val success = repository.updateReminder(updatedReminder)
+                if (success) {
                     _successMessage.value = "¡Recordatorio actualizado!"
                     scheduleNotifications(context, data, data.id)
-                    loadInitialData() // Refresh all data
+                    // loadData() // Recargar datos - This line is removed as data is now real-time
+                } else {
+                    _errorMessage.value = "Error al actualizar en Firebase"
                 }
             } catch (e: Exception) {
                 _errorMessage.value = "Error al actualizar: ${e.message}"
@@ -571,8 +491,10 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
                 if (success) {
                     _successMessage.value = "¡Recordatorio eliminado exitosamente!"
                     
-                    // Recargar todos los datos desde Firebase para asegurar sincronización
-                    loadInitialData()
+                    // Recargar datos inmediatamente
+                    // loadData() // This line is removed as data is now real-time
+                    
+                    Log.d("ReminderViewModel", "Recordatorio eliminado: $id")
                 } else {
                     _errorMessage.value = "Error al eliminar de Firebase"
                 }
@@ -588,14 +510,14 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
     fun markAsCompleted(id: String) {
         viewModelScope.launch {
             try {
-                kotlinx.coroutines.delay(300) // Simulate network delay
-                val currentList = _reminders.value.toMutableList()
-                val index = currentList.indexOfFirst { it.id == id }
-                if (index != -1) {
-                    currentList[index] = currentList[index].copy(completedDoses = 1)
-                    _reminders.value = currentList
+                // Marcar como completado en Firebase
+                val success = repository.markReminderCompleted(id, true)
+                
+                if (success) {
                     _successMessage.value = "¡Medicamento tomado! ✅"
-                    loadInitialData() // Refresh all data
+                    // loadData() // Recargar datos - This line is removed as data is now real-time
+                } else {
+                    _errorMessage.value = "Error al actualizar en Firebase"
                 }
             } catch (e: Exception) {
                 _errorMessage.value = "Error al marcar: ${e.message}"
@@ -606,22 +528,44 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
     fun markScheduleAsCompleted(scheduleId: String) {
         viewModelScope.launch {
             try {
+                Log.d("ReminderViewModel", "Marcando dosis como completada: $scheduleId")
+                
+                // Extraer el reminderId del scheduleId (formato: "reminderId_index")
+                val reminderId = if (scheduleId.contains("_")) {
+                    scheduleId.substringBeforeLast("_")
+                } else {
+                    scheduleId
+                }
+                
+                Log.d("ReminderViewModel", "ReminderId extraído: $reminderId")
+                
                 // Buscar el recordatorio correspondiente
-                val reminder = _reminders.value.find { it.id == scheduleId }
+                val reminder = _reminders.value.find { it.id == reminderId }
                 if (reminder != null) {
-                    // Marcar como completado en Firebase
-                    val success = repository.markReminderCompleted(scheduleId, true)
+                    Log.d("ReminderViewModel", "Recordatorio encontrado: ${reminder.name}")
+                    
+                    // Extraer el índice de la dosis del scheduleId
+                    val doseIndex = if (scheduleId.contains("_")) {
+                        scheduleId.substringAfterLast("_").toIntOrNull() ?: 0
+                    } else {
+                        0
+                    }
+                    
+                    Log.d("ReminderViewModel", "Índice de dosis: $doseIndex")
+                    
+                    // Marcar dosis específica como completada en Firebase
+                    val success = repository.markDoseAsCompleted(reminderId, doseIndex)
                     
                     if (success) {
                         _successMessage.value = "¡Medicamento tomado! ✅"
-                        
-                        // Recargar todos los datos desde Firebase para asegurar sincronización
-                        loadInitialData()
+                        Log.d("ReminderViewModel", "Dosis marcada como completada exitosamente")
                     } else {
                         _errorMessage.value = "Error al actualizar en Firebase"
+                        Log.e("ReminderViewModel", "Error al marcar dosis como completada")
                     }
                 } else {
                     _errorMessage.value = "Recordatorio no encontrado"
+                    Log.e("ReminderViewModel", "Recordatorio no encontrado para ID: $reminderId")
                 }
             } catch (e: Exception) {
                 _errorMessage.value = "Error al marcar como completado: ${e.message}"
@@ -633,7 +577,9 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
     suspend fun getDailyProgressForReminder(reminderId: String): Pair<Int, Int> {
         val reminder = _reminders.value.find { it.id == reminderId }
         return if (reminder != null) {
-            Pair(reminder.completedDoses, reminder.totalDoses)
+            val completed = reminder.getCompletedDosesCount()
+            val total = reminder.getTotalDosesCount()
+            Pair(completed, total)
         } else {
             Pair(0, 0)
         }
@@ -642,24 +588,16 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
     fun validateScheduleForm(): Boolean {
         val data = _formData.value
 
-        if (data.frequency.isBlank()) {
+        if (data.frequencyHours <= 0) {
             _errorMessage.value = "Por favor selecciona la frecuencia"
             return false
         }
-        if (data.firstDoseTime.isBlank()) {
-            _errorMessage.value = "Por favor selecciona la primera dosis"
+        if (data.firstHour.isBlank()) {
+            _errorMessage.value = "Por favor selecciona la primera hora"
             return false
         }
-        if (data.doseTime.isBlank()) {
-            _errorMessage.value = "Por favor ingresa la hora de la segunda dosis"
-            return false
-        }
-        if (data.frequency == "Días Seleccionados" && data.selectedDays.isEmpty()) {
+        if (data.days.isEmpty()) {
             _errorMessage.value = "Por favor selecciona al menos un día"
-            return false
-        }
-        if (data.frequency == "Cíclicamente" && data.cycleWeeks.isBlank()) {
-            _errorMessage.value = "Por favor selecciona el ciclo de semanas"
             return false
         }
 
@@ -669,11 +607,15 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
     private fun validateForm(): Boolean {
         val data = _formData.value
 
-        if (data.medication.isBlank()) {
+        if (data.name.isBlank()) {
             _errorMessage.value = "Por favor ingresa el nombre del medicamento"
             return false
         }
-        if (data.dosage.isBlank()) {
+        if (data.type.isBlank()) {
+            _errorMessage.value = "Por favor selecciona el tipo de medicamento"
+            return false
+        }
+        if (data.dosage <= 0.0) {
             _errorMessage.value = "Por favor ingresa la dosis"
             return false
         }
@@ -681,28 +623,16 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
             _errorMessage.value = "Por favor selecciona la unidad"
             return false
         }
-        if (data.type.isBlank()) {
-            _errorMessage.value = "Por favor selecciona el tipo de medicamento"
-            return false
-        }
-        if (data.frequency.isBlank()) {
+        if (data.frequencyHours <= 0) {
             _errorMessage.value = "Por favor selecciona la frecuencia"
             return false
         }
-        if (data.firstDoseTime.isBlank()) {
-            _errorMessage.value = "Por favor selecciona la hora de la primera dosis"
+        if (data.firstHour.isBlank()) {
+            _errorMessage.value = "Por favor selecciona la primera hora"
             return false
         }
-        if (data.doseTime.isBlank()) {
-            _errorMessage.value = "Por favor ingresa la hora de la segunda dosis"
-            return false
-        }
-        if (data.frequency == "Días Seleccionados" && data.selectedDays.isEmpty()) {
+        if (data.days.isEmpty()) {
             _errorMessage.value = "Por favor selecciona al menos un día"
-            return false
-        }
-        if (data.frequency == "Cíclicamente" && data.cycleWeeks.isBlank()) {
-            _errorMessage.value = "Por favor selecciona el ciclo de semanas"
             return false
         }
 
@@ -711,23 +641,30 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
 
     private fun scheduleNotifications(context: Context, data: ReminderEntity, reminderId: String) {
         try {
-            val firstDoseMillis = parseTimeToMillis(data.hour)
-            NotificationUtils.scheduleNotification(
-                context,
-                "Recordatorio de medicamento",
-                "Es hora de tomar ${data.name} (${data.dosage} ${data.unit})",
-                firstDoseMillis,
-                reminderId.hashCode()
+            // Crear un recordatorio temporal para calcular los horarios
+            val tempReminder = Reminder(
+                name = data.name,
+                type = data.type,
+                dosage = data.dosage,
+                unit = data.unit,
+                instructions = data.instructions,
+                frequencyHours = data.frequencyHours,
+                firstHour = data.firstHour,
+                days = data.days
             )
-
-            if (data.frequency == "Diariamente" && data.secondHour.isNotBlank()) {
-                val secondDoseMillis = parseTimeToMillis(data.secondHour)
+            
+            // Calcular todos los horarios basados en la frecuencia
+            val calculatedHours = tempReminder.calculateSchedule()
+            
+            // Programar notificaciones para cada horario
+            calculatedHours.forEachIndexed { index, hour ->
+                val doseMillis = parseTimeToMillis(hour)
                 NotificationUtils.scheduleNotification(
                     context,
                     "Recordatorio de medicamento",
                     "Es hora de tomar ${data.name} (${data.dosage} ${data.unit})",
-                    secondDoseMillis,
-                    (reminderId.hashCode() + 1)
+                    doseMillis,
+                    (reminderId.hashCode() + index)
                 )
             }
         } catch (e: Exception) {
@@ -759,19 +696,18 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
         return System.currentTimeMillis() + 60000
     }
 
+
+    
     // Validaciones
     private fun validateCompleteForm(data: ReminderEntity): Boolean {
         when {
             data.name.isBlank() -> _errorMessage.value = "Por favor ingresa el nombre del medicamento"
-            data.dosage.isBlank() -> _errorMessage.value = "Por favor ingresa la dosis"
-            data.unit.isBlank() -> _errorMessage.value = "Por favor selecciona la unidad"
             data.type.isBlank() -> _errorMessage.value = "Por favor selecciona el tipo de medicamento"
-            data.frequency.isBlank() -> _errorMessage.value = "Por favor selecciona la frecuencia"
-            data.hour.isBlank() -> _errorMessage.value = "Por favor selecciona la primera dosis"
-            data.frequency == "Días Seleccionados" && data.days.isEmpty() ->
-                _errorMessage.value = "Por favor selecciona al menos un día"
-            data.frequency == "Cíclicamente" && data.cycleWeeks.isBlank() ->
-                _errorMessage.value = "Por favor selecciona el ciclo de semanas"
+            data.dosage <= 0.0 -> _errorMessage.value = "Por favor ingresa la dosis"
+            data.unit.isBlank() -> _errorMessage.value = "Por favor selecciona la unidad"
+            data.frequencyHours <= 0 -> _errorMessage.value = "Por favor selecciona la frecuencia"
+            data.firstHour.isBlank() -> _errorMessage.value = "Por favor selecciona la primera hora"
+            data.days.isEmpty() -> _errorMessage.value = "Por favor selecciona al menos un día"
             else -> return true
         }
         return false

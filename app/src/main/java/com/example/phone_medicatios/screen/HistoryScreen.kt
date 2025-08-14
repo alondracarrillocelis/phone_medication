@@ -43,9 +43,11 @@ import android.util.Log
 fun HistoryScreen(navController: NavController, viewModel: ReminderViewModel) {
     val purple = Color(0xFFB295C7)
     val reminders by viewModel.reminders.collectAsState()
-    val todaySchedules by viewModel.todaySchedules.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val successMessage by viewModel.successMessage.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+
+    // Los datos se actualizan automáticamente en tiempo real, no necesitamos cargar manualmente
 
     // Auto-ocultar mensajes de éxito después de unos segundos
     LaunchedEffect(successMessage) {
@@ -53,12 +55,6 @@ fun HistoryScreen(navController: NavController, viewModel: ReminderViewModel) {
             kotlinx.coroutines.delay(3000) // 3 segundos
             viewModel.clearMessages()
         }
-    }
-    
-    // Recargar datos cuando se entra a la pantalla
-    LaunchedEffect(Unit) {
-        Log.d("HistoryScreen", "Entrando a la pantalla de historial - recargando datos")
-        viewModel.refreshData()
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -108,60 +104,74 @@ fun HistoryScreen(navController: NavController, viewModel: ReminderViewModel) {
                             fontWeight = FontWeight.Medium
                         )
                     }
-                    
-                    // Botones de debug eliminados
                 }
             }
 
             // Mensajes de estado
             errorMessage?.let { error ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.Red.copy(alpha = 0.1f)),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
+                if (error.isNotBlank()) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 8.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.Red.copy(alpha = 0.1f)),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(
-                            text = "❌ $error",
-                            color = Color.Red,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        if (error.contains("índices")) {
-                            Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(
-                                text = "💡 Solución: Ejecuta el script setup_firebase.ps1 en PowerShell como administrador",
-                                color = Color.Blue,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium
+                                error,
+                                color = Color.Red,
+                                fontSize = 14.sp,
+                                modifier = Modifier.weight(1f)
                             )
+                            TextButton(
+                                onClick = { viewModel.clearMessages() }
+                            ) {
+                                Text(
+                                    "✕",
+                                    color = Color.Red,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                            }
                         }
                     }
                 }
             }
-            
+
             successMessage?.let { success ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.Green.copy(alpha = 0.1f)),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                if (success.isNotBlank()) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 8.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.Green.copy(alpha = 0.1f)),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(
-                            text = success,
-                            color = Color.Green,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium
-                        )
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                success,
+                                color = Color.Green,
+                                fontSize = 14.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            TextButton(
+                                onClick = { viewModel.clearMessages() }
+                            ) {
+                                Text(
+                                    "✕",
+                                    color = Color.Green,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -195,7 +205,9 @@ fun HistoryScreen(navController: NavController, viewModel: ReminderViewModel) {
                             reminder = reminder,
                             completedToday = completedToday,
                             totalToday = totalToday,
-                            onDelete = { viewModel.deleteReminder(reminder.id) }
+                            onDelete = { 
+                                viewModel.deleteReminder(reminder.id)
+                            }
                         )
                     }
                 }
@@ -292,13 +304,13 @@ fun ReminderHistoryItem(
     val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale("es", "ES"))
     val createdDate = dateFormat.format(reminder.createdAt)
     
-    // Progreso diario
-    val dailyProgress = if (totalToday > 0) completedToday.toFloat() / totalToday else 0f
+    // Progreso diario usando las nuevas funciones del modelo
+    val completedDoses = reminder.getCompletedDosesCount()
+    val totalDoses = reminder.getTotalDosesCount()
+    val dailyProgress = if (totalDoses > 0) completedDoses.toFloat() / totalDoses else 0f
 
-    // Progreso histórico (total)
-    val progressPercentage = if (reminder.totalDoses > 0) {
-        (reminder.completedDoses * 100) / reminder.totalDoses
-    } else 0
+    // Mostrar progreso del día
+    val progressPercentage = reminder.getProgressPercentage()
     
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -334,7 +346,7 @@ fun ReminderHistoryItem(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            reminder.medicationName.ifBlank { "Medicamento" },
+                            reminder.name.ifBlank { "Medicamento" },
                             fontSize = 18.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color.Black
@@ -345,11 +357,7 @@ fun ReminderHistoryItem(
                             color = Color.Gray
                         )
                         Text(
-                            if (reminder.doseTime.isNotBlank()) {
-                                "${reminder.firstDoseTime} - ${reminder.doseTime}"
-                            } else {
-                                "Hora: ${reminder.firstDoseTime}"
-                            },
+                            "Horarios: ${reminder.calculateSchedule().joinToString(" - ")}",
                             fontSize = 12.sp,
                             color = purple,
                             fontWeight = FontWeight.Medium
@@ -415,10 +423,7 @@ fun ReminderHistoryItem(
                                 color = purple
                             )
                             Text(
-                                when (reminder.frequency) {
-                                    "Cíclicamente" -> "${reminder.frequency} (Cada ${reminder.cycleWeeks} semanas)"
-                                    else -> reminder.frequency
-                                },
+                                "Cada ${reminder.frequencyHours} horas",
                                 fontSize = 14.sp,
                                 color = Color.Black
                             )
@@ -450,13 +455,13 @@ fun ReminderHistoryItem(
                             color = purple
                         )
                         Text(
-                            "$completedToday/$totalToday dosis completadas hoy",
+                            "$completedDoses/$totalDoses dosis completadas hoy",
                             fontSize = 14.sp,
                             color = Color.Black
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         // Barra de progreso diaria
-                        if (totalToday > 0) {
+                        if (totalDoses > 0) {
                             LinearProgressIndicator(
                                 progress = dailyProgress,
                                 modifier = Modifier
@@ -483,20 +488,20 @@ fun ReminderHistoryItem(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End
                     ) {
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (reminder.isActive) green.copy(alpha = 0.1f) else orange.copy(alpha = 0.1f)
-                            ),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text(
-                                if (reminder.isActive) "✅ Activo" else "⏸️ Inactivo",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = if (reminder.isActive) green else orange,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
-                        }
+                                                 Card(
+                             colors = CardDefaults.cardColors(
+                                 containerColor = if (reminder.active) green.copy(alpha = 0.1f) else orange.copy(alpha = 0.1f)
+                             ),
+                             shape = RoundedCornerShape(8.dp)
+                         ) {
+                             Text(
+                                 if (reminder.active) "✅ Activo" else "⏸️ Inactivo",
+                                 fontSize = 12.sp,
+                                 fontWeight = FontWeight.Medium,
+                                 color = if (reminder.active) green else orange,
+                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                             )
+                         }
                     }
                 }
             }

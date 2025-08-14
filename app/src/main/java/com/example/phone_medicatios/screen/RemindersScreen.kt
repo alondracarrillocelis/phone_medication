@@ -10,7 +10,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -37,11 +39,9 @@ fun RemindersScreen(navController: NavController, viewModel: ReminderViewModel) 
     val reminders by viewModel.reminders.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val successMessage by viewModel.successMessage.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
 
-    // Forzar recarga de recordatorios al entrar a la pantalla
-    LaunchedEffect(Unit) {
-        viewModel.forceRefreshData()
-    }
+    // Los datos se actualizan automáticamente en tiempo real, no necesitamos cargar manualmente
 
     // Auto-ocultar mensajes de éxito después de unos segundos
     LaunchedEffect(successMessage) {
@@ -85,57 +85,98 @@ fun RemindersScreen(navController: NavController, viewModel: ReminderViewModel) 
                     fontWeight = FontWeight.Bold,
                     color = Color.Black
                 )
+                
+
             }
 
             // Mensajes de estado
             errorMessage?.let { error ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.Red.copy(alpha = 0.1f)),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                if (error.isNotBlank()) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 8.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.Red.copy(alpha = 0.1f)),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(
-                            error,
-                            color = Color.Red,
-                            fontSize = 14.sp
-                        )
-                    }
-                }
-            }
-            successMessage?.let { success ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.Green.copy(alpha = 0.1f)),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            success,
-                            color = Color.Green,
-                            fontSize = 14.sp
-                        )
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                error,
+                                color = Color.Red,
+                                fontSize = 14.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            TextButton(
+                                onClick = { viewModel.clearMessages() }
+                            ) {
+                                Text(
+                                    "✕",
+                                    color = Color.Red,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                            }
+                        }
                     }
                 }
             }
 
-            // Lista de recordatorios
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+            successMessage?.let { success ->
+                if (success.isNotBlank()) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 8.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.Green.copy(alpha = 0.1f)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                success,
+                                color = Color.Green,
+                                fontSize = 14.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            TextButton(
+                                onClick = { viewModel.clearMessages() }
+                            ) {
+                                Text(
+                                    "✕",
+                                    color = Color.Green,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Indicador de carga
+            if (isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        color = purple,
+                        modifier = Modifier.size(48.dp)
+                    )
+                }
+            } else {
+                // Lista de recordatorios
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                 if (reminders.isEmpty()) {
                     item {
                         Card(
@@ -179,17 +220,18 @@ fun RemindersScreen(navController: NavController, viewModel: ReminderViewModel) 
                             onDelete = { viewModel.deleteReminder(reminder.id) },
                             onEdit = {
                                 // Precargar datos en el ViewModel y navegar al formulario de edición
-                                viewModel.updateFormData(
-                                    viewModel.formData.value.copy(
-                                        medication = reminder.medicationName,
-                                        dosage = reminder.dosage,
-                                        unit = reminder.unit,
-                                        type = reminder.type,
-                                        frequency = reminder.frequency,
-                                        firstDoseTime = reminder.firstDoseTime,
-                                        doseTime = reminder.doseTime
-                                    )
-                                )
+                                                                 viewModel.updateFormData(
+                                     viewModel.formData.value.copy(
+                                         name = reminder.name,
+                                         type = reminder.type,
+                                         dosage = reminder.dosage,
+                                         unit = reminder.unit,
+                                         instructions = reminder.instructions,
+                                         frequencyHours = reminder.frequencyHours,
+                                         firstHour = reminder.firstHour,
+                                         days = reminder.days
+                                     )
+                                 )
                                 navController.navigate(Screen.ReminderForm.route + "?editReminderId=" + reminder.id)
                             }
                         )
@@ -198,6 +240,7 @@ fun RemindersScreen(navController: NavController, viewModel: ReminderViewModel) 
             }
         }
     }
+}
 }
 
 @Composable
@@ -235,7 +278,7 @@ fun ReminderCard(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    reminder.medicationName,
+                    reminder.name,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.Black
@@ -248,31 +291,53 @@ fun ReminderCard(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    when (reminder.frequency) {
-                        "Cíclicamente" -> "Frecuencia: ${reminder.frequency} (Cada ${reminder.cycleWeeks} semanas)"
-                        else -> "Frecuencia: ${reminder.frequency}"
-                    },
+                    "Frecuencia: cada ${reminder.frequencyHours} horas",
                     fontSize = 12.sp,
                     color = Color.Gray
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "Primera dosis: ${reminder.firstDoseTime}",
+                    "Primera hora: ${reminder.firstHour}",
                     fontSize = 12.sp,
                     color = Color.Gray
                 )
-                if (reminder.doseTime.isNotBlank()) {
+                if (reminder.instructions.isNotBlank()) {
                     Text(
-                        "Segunda dosis: ${reminder.doseTime}",
+                        "Instrucciones: ${reminder.instructions}",
                         fontSize = 12.sp,
                         color = Color.Gray
                     )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
+                
                 Text(
                     "Agregado: ${dateFormat.format(reminder.createdAt)}",
                     fontSize = 12.sp,
                     color = Color.Gray
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                // Barra de progreso y contador de dosis
+                val completedDoses = reminder.getCompletedDosesCount()
+                val totalDoses = reminder.getTotalDosesCount()
+                val progressPercentage = reminder.getProgressPercentage()
+                
+                Text(
+                    "Progreso: $completedDoses/$totalDoses dosis completadas",
+                    fontSize = 12.sp,
+                    color = Color.Gray,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                // Barra de progreso
+                LinearProgressIndicator(
+                    progress = progressPercentage / 100f,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp),
+                    color = purple,
+                    trackColor = Color.Gray.copy(alpha = 0.3f)
                 )
             }
             // Botón de editar

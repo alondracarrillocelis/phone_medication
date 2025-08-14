@@ -36,6 +36,9 @@ interface ReminderScheduleDao {
     """)
     fun getPendingSchedulesWithMedicationName(today: java.util.Date): Flow<List<ScheduleWithMedicationName>>
     
+    @Query("SELECT * FROM reminder_schedules WHERE scheduledDate = :today")
+    fun getTodaySchedules(today: java.util.Date): List<ReminderScheduleEntity>
+    
     @Insert
     fun insertSchedule(schedule: ReminderScheduleEntity): Long
     

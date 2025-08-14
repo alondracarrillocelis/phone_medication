@@ -1,19 +1,19 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Reglas permisivas para desarrollo - NO USAR EN PRODUCCIÓN
-    match /medications/{medicationId} {
+    // Reglas temporales para diagnóstico - PERMITIR TODO
+    match /{document=**} {
       allow read, write: if true;
     }
     
-    // Reglas para recordatorios
-    match /reminders/{reminderId} {
-      allow read, write: if true;
+    // Reglas originales (comentadas para diagnóstico)
+    /*
+    match /medications/{document} {
+      allow read, write: if request.auth != null || resource.data.userId == "user1";
     }
-    
-    // Reglas para usuarios
-    match /users/{userId} {
-      allow read, write: if true;
+    match /reminders/{document} {
+      allow read, write: if request.auth != null || resource.data.userId == "user1";
     }
+    */
   }
 } 
