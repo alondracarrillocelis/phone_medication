@@ -292,8 +292,8 @@ fun ReminderProgramScreen(navController: NavController, viewModel: ReminderViewM
                     }
                 }
 
-                // Mensajes de estado
-                errorMessage?.let { error ->
+                // Mensajes de estado (solo si hay mensajes)
+                if (errorMessage?.isNotBlank() == true) {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -306,16 +306,27 @@ fun ReminderProgramScreen(navController: NavController, viewModel: ReminderViewM
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "❌ $error",
+                                text = "❌ $errorMessage",
                                 color = Color.Red,
                                 fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.weight(1f)
                             )
+                            TextButton(
+                                onClick = { viewModel.clearMessages() }
+                            ) {
+                                Text(
+                                    "✕",
+                                    color = Color.Red,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }
                 
-                successMessage?.let { success ->
+                if (successMessage?.isNotBlank() == true) {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -328,11 +339,22 @@ fun ReminderProgramScreen(navController: NavController, viewModel: ReminderViewM
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = success,
+                                text = successMessage,
                                 color = Color.Green,
                                 fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.weight(1f)
                             )
+                            TextButton(
+                                onClick = { viewModel.clearMessages() }
+                            ) {
+                                Text(
+                                    "✕",
+                                    color = Color.Green,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }

@@ -72,6 +72,9 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
         get() = _medications.value.size
 
     init {
+        // Limpiar mensajes al inicializar
+        clearMessages()
+        
         // Cargar datos iniciales de forma segura
         loadInitialData()
         
