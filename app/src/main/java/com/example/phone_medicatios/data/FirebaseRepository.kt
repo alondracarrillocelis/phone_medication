@@ -3,24 +3,20 @@ package com.example.phone_medicatios.data
 import android.util.Log
 import kotlinx.coroutines.flow.Flow
 import java.util.*
+import com.example.phone_medicatios.data.MedicineReminder
 
 class FirebaseRepository : Repository {
     private val firebaseService = FirebaseService()
-    private val currentUserId = "user1" // Por ahora hardcodeado, después se puede implementar autenticación
+    private val currentUserId = "user123" // Por ahora hardcodeado, después se puede implementar autenticación
 
     companion object {
         private const val TAG = "FirebaseRepository"
     }
 
     // Nuevos métodos usando Flow para tiempo real
-    override fun getMedicationsFlow(): Flow<List<Medication>> {
-        Log.d(TAG, "FirebaseRepository: Iniciando flujo de medicamentos para userId: $currentUserId")
-        return firebaseService.getMedicationsFlow(currentUserId)
-    }
-
-    override fun getRemindersFlow(): Flow<List<Reminder>> {
-        Log.d(TAG, "FirebaseRepository: Iniciando flujo de recordatorios para userId: $currentUserId")
-        return firebaseService.getRemindersFlow(currentUserId)
+    fun getMedicineRemindersFlow(): Flow<List<MedicineReminder>> {
+        Log.d(TAG, "FirebaseRepository: Iniciando flujo de recordatorios de medicamentos para userId: $currentUserId")
+        return firebaseService.getMedicineRemindersFlow(currentUserId)
     }
 
     // Métodos legacy para compatibilidad
@@ -78,11 +74,18 @@ class FirebaseRepository : Repository {
 
     override suspend fun addReminder(reminder: Reminder): String? {
         return try {
-            val reminderWithUserId = reminder.copy(
+            val medicineReminder = MedicineReminder(
+                name = reminder.name,
+                dosage = reminder.dosage.toString(),
+                unit = reminder.unit,
+                type = reminder.type,
+                frequencyPerDay = reminder.getTotalDosesCount(),
+                firstHour = reminder.firstHour,
                 userId = currentUserId,
-                createdAt = Date()
+                createdAt = Date(),
+                active = reminder.active
             )
-            firebaseService.addReminder(reminderWithUserId)
+            firebaseService.addMedicineReminder(medicineReminder)
         } catch (e: Exception) {
             Log.e(TAG, "Error adding reminder: ${e.message}")
             null
@@ -116,9 +119,9 @@ class FirebaseRepository : Repository {
         }
     }
 
-    override suspend fun deleteReminder(reminderId: String): Boolean {
+    override suspend fun deleteReminder(reminder: Reminder): Boolean {
         return try {
-            firebaseService.deleteReminder(reminderId)
+            firebaseService.deleteReminder(reminder.id)
         } catch (e: Exception) {
             Log.e(TAG, "Error deleting reminder: ${e.message}")
             false
@@ -136,7 +139,9 @@ class FirebaseRepository : Repository {
 
     override suspend fun markDoseAsCompleted(reminderId: String, doseIndex: Int): Boolean {
         return try {
-            firebaseService.markDoseAsCompleted(reminderId, doseIndex)
+            // Por ahora, marcamos el recordatorio como completado
+            // En el futuro se puede implementar lógica más granular para dosis individuales
+            firebaseService.markReminderCompleted(reminderId, true)
         } catch (e: Exception) {
             Log.e(TAG, "Error marking dose as completed: ${e.message}")
             false

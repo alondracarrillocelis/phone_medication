@@ -37,7 +37,7 @@ fun ReminderFormScreen(
 ) {
     val context = LocalContext.current
     val purple = Color(0xFFB295C7)
-    
+
     val formData by viewModel.formData.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
@@ -120,13 +120,13 @@ fun ReminderFormScreen(
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
                         Text(
-                            "Nuevo Recordatorio", 
-                            fontSize = 26.sp, 
+                            "Nuevo Recordatorio",
+                            fontSize = 26.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            "Configura tu medicamento", 
-                            fontSize = 16.sp, 
+                            "Configura tu medicamento",
+                            fontSize = 16.sp,
                             color = Color.Gray
                         )
                     }
@@ -150,20 +150,20 @@ fun ReminderFormScreen(
                     // Campo Medicamento
                     OutlinedTextField(
                         value = formData.name,
-                        onValueChange = { 
-                                                viewModel.updateFormData(formData.copy(name = it))
+                        onValueChange = {
+                            viewModel.updateFormData(formData.copy(name = it))
                         },
-                        label = { 
+                        label = {
                             Text(
-                                "Nombre del medicamento", 
+                                "Nombre del medicamento",
                                 fontSize = 16.sp
-                            ) 
+                            )
                         },
-                        placeholder = { 
+                        placeholder = {
                             Text(
-                                "Ej: Paracetamol, Ibuprofeno...", 
+                                "Ej: Paracetamol, Ibuprofeno...",
                                 fontSize = 14.sp
-                            ) 
+                            )
                         },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
@@ -184,17 +184,17 @@ fun ReminderFormScreen(
                             val dosageValue = newValue.toDoubleOrNull() ?: 0.0
                             viewModel.updateFormData(formData.copy(dosage = dosageValue))
                         },
-                        label = { 
+                        label = {
                             Text(
-                                "Dosis", 
+                                "Dosis",
                                 fontSize = 16.sp
-                            ) 
+                            )
                         },
-                        placeholder = { 
+                        placeholder = {
                             Text(
-                                "Ej: 500, 1000...", 
+                                "Ej: 500, 1000...",
                                 fontSize = 14.sp
-                            ) 
+                            )
                         },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
@@ -204,145 +204,105 @@ fun ReminderFormScreen(
                         )
                     )
 
-                // Dropdown Unidad
-                ExposedDropdownMenuBox(
-                    expanded = unidadExpanded,
-                    onExpandedChange = { unidadExpanded = !unidadExpanded }
-                ) {
-                    OutlinedTextField(
-                        value = formData.unit,
-                        onValueChange = {},
-                        readOnly = true,
-                            label = { 
+                    // Dropdown Unidad
+                    ExposedDropdownMenuBox(
+                        expanded = unidadExpanded,
+                        onExpandedChange = { unidadExpanded = !unidadExpanded }
+                    ) {
+                        OutlinedTextField(
+                            value = formData.unit,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = {
                                 Text(
-                                    "Unidad", 
+                                    "Unidad",
                                     fontSize = 16.sp
-                                ) 
+                                )
                             },
-                        trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = unidadExpanded)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
+                            trailingIcon = {
+                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = unidadExpanded)
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
                                 .menuAnchor(),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = purple,
                                 unfocusedBorderColor = Color.Gray.copy(alpha = 0.5f)
                             )
-                    )
-                    ExposedDropdownMenu(
-                        expanded = unidadExpanded,
-                        onDismissRequest = { unidadExpanded = false }
-                    ) {
-                        unidadOptions.forEach { option ->
-                            DropdownMenuItem(
-                                    text = { 
+                        )
+                        ExposedDropdownMenu(
+                            expanded = unidadExpanded,
+                            onDismissRequest = { unidadExpanded = false }
+                        ) {
+                            unidadOptions.forEach { option ->
+                                DropdownMenuItem(
+                                    text = {
                                         Text(
-                                            option, 
+                                            option,
                                             fontSize = 16.sp
-                                        ) 
+                                        )
                                     },
-                                onClick = {
-                                    viewModel.updateFormData(formData.copy(unit = option))
-                                    unidadExpanded = false
-                                }
-                            )
+                                    onClick = {
+                                        viewModel.updateFormData(formData.copy(unit = option))
+                                        unidadExpanded = false
+                                    }
+                                )
+                            }
                         }
                     }
-                }
 
-                // Dropdown Tipo
-                ExposedDropdownMenuBox(
-                    expanded = tipoExpanded,
-                    onExpandedChange = { tipoExpanded = !tipoExpanded }
-                ) {
-                    OutlinedTextField(
-                        value = formData.type,
-                        onValueChange = {},
-                        readOnly = true,
-                            label = { 
+                    // Dropdown Tipo
+                    ExposedDropdownMenuBox(
+                        expanded = tipoExpanded,
+                        onExpandedChange = { tipoExpanded = !tipoExpanded }
+                    ) {
+                        OutlinedTextField(
+                            value = formData.type,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = {
                                 Text(
-                                    "Tipo de medicamento", 
+                                    "Tipo de medicamento",
                                     fontSize = 16.sp
-                                ) 
+                                )
                             },
-                        trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = tipoExpanded)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
+                            trailingIcon = {
+                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = tipoExpanded)
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
                                 .menuAnchor(),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = purple,
                                 unfocusedBorderColor = Color.Gray.copy(alpha = 0.5f)
                             )
-                    )
-                    ExposedDropdownMenu(
-                        expanded = tipoExpanded,
-                        onDismissRequest = { tipoExpanded = false }
-                    ) {
-                        tipoOptions.forEach { option ->
-                            DropdownMenuItem(
-                                    text = { 
+                        )
+                        ExposedDropdownMenu(
+                            expanded = tipoExpanded,
+                            onDismissRequest = { tipoExpanded = false }
+                        ) {
+                            tipoOptions.forEach { option ->
+                                DropdownMenuItem(
+                                    text = {
                                         Text(
-                                            option, 
+                                            option,
                                             fontSize = 16.sp
-                                        ) 
+                                        )
                                     },
-                                onClick = {
-                                    viewModel.updateFormData(formData.copy(type = option))
-                                    tipoExpanded = false
-                                }
-                            )
+                                    onClick = {
+                                        viewModel.updateFormData(formData.copy(type = option))
+                                        tipoExpanded = false
+                                    }
+                                )
                             }
                         }
                     }
                 }
 
                 // Mensajes de estado
-                errorMessage?.let { error ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.Red.copy(alpha = 0.1f)),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "❌ $error",
-                                color = Color.Red,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-                }
-                
-                successMessage?.let { success ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.Green.copy(alpha = 0.1f)),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = success,
-                                color = Color.Green,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-                }
+
+
+
 
                 // Botones
                 Row(
@@ -350,23 +310,23 @@ fun ReminderFormScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     OutlinedButton(
-                        onClick = { 
+                        onClick = {
                             viewModel.clearMessages()
-                            navController.popBackStack() 
+                            navController.popBackStack()
                         },
                         border = BorderStroke(2.dp, purple),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = purple),
                         modifier = Modifier.weight(1f)
                     ) {
                         Text(
-                            "Cancelar", 
+                            "Cancelar",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium
                         )
                     }
-                    
+
                     Spacer(modifier = Modifier.width(16.dp))
-                    
+
                     Button(
                         onClick = {
                             viewModel.clearMessages()
@@ -375,7 +335,7 @@ fun ReminderFormScreen(
                             } else if (isEditMode) {
                                 viewModel.updateMedication(editMedId!!, formData)
                             } else {
-                            navController.navigate(Screen.ReminderSchedule.route)
+                                navController.navigate(Screen.ReminderSchedule.route)
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = purple),
@@ -390,7 +350,7 @@ fun ReminderFormScreen(
                             )
                         } else {
                             Text(
-                                if (isEditReminderMode) "Guardar cambios" else if (isEditMode) "Guardar cambios" else "Siguiente", 
+                                if (isEditReminderMode) "Guardar cambios" else if (isEditMode) "Guardar cambios" else "Siguiente",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium
                             )

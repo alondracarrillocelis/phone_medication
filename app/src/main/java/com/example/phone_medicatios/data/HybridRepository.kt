@@ -104,11 +104,11 @@ class HybridRepository(
     }
     
     // Flows en tiempo real (combinan datos locales y Firebase)
-    override fun getMedicationsFlow(): Flow<List<Medication>> {
+    fun getMedicationsFlow(): Flow<List<Medication>> {
         return _localMedications.asStateFlow()
     }
     
-    override fun getRemindersFlow(): Flow<List<Reminder>> {
+    fun getRemindersFlow(): Flow<List<Reminder>> {
         return _localReminders.asStateFlow()
     }
     
@@ -301,14 +301,14 @@ class HybridRepository(
         }
     }
     
-    override suspend fun deleteReminder(reminderId: String): Boolean {
+    override suspend fun deleteReminder(reminder: Reminder): Boolean {
         return try {
             // Eliminar de local primero
-            val localSuccess = sqliteRepository.deleteReminder(reminderId)
+            val localSuccess = sqliteRepository.deleteReminder(reminder.id)
             
             if (localSuccess) {
                 // Actualizar estado local inmediatamente
-                val updatedReminders = _localReminders.value.filter { it.id != reminderId }
+                val updatedReminders = _localReminders.value.filter { it.id != reminder.id }
                 _localReminders.value = updatedReminders
                 
                 // Actualizar horarios de hoy
@@ -319,7 +319,7 @@ class HybridRepository(
             
             // Intentar eliminar de Firebase (en segundo plano)
             try {
-                firebaseRepository.deleteReminder(reminderId)
+                firebaseRepository.deleteReminder(reminder)
                 Log.d(TAG, "Recordatorio eliminado de Firebase")
             } catch (e: Exception) {
                 Log.w(TAG, "Error eliminando de Firebase: ${e.message}")

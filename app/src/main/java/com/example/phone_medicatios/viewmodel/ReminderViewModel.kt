@@ -122,7 +122,7 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
             // Observar medicamentos en tiempo real
             viewModelScope.launch {
                 try {
-                    repository.getMedicationsFlow().collect { medications ->
+                    (repository as HybridRepository).getMedicationsFlow().collect { medications ->
                         Log.d("ReminderViewModel", "Medicamentos actualizados en tiempo real: ${medications.size}")
                         _medications.value = medications
                         updateStats(medications, _reminders.value)
@@ -135,7 +135,7 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
             // Observar recordatorios en tiempo real
             viewModelScope.launch {
                 try {
-                    repository.getRemindersFlow().collect { reminders ->
+                    (repository as HybridRepository).getRemindersFlow().collect { reminders ->
                         Log.d("ReminderViewModel", "Recordatorios actualizados en tiempo real: ${reminders.size}")
                         _reminders.value = reminders
                         updateStats(_medications.value, reminders)
@@ -485,8 +485,11 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
         
         viewModelScope.launch {
             try {
-                // Eliminar de Firebase
-                val success = repository.deleteReminder(id)
+                // Buscar el recordatorio para obtener el objeto completo
+                val reminder = _reminders.value.find { it.id == id }
+                if (reminder != null) {
+                    // Eliminar de Firebase
+                    val success = repository.deleteReminder(reminder)
                 
                 if (success) {
                     _successMessage.value = "¡Recordatorio eliminado exitosamente!"
@@ -497,6 +500,9 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
                     Log.d("ReminderViewModel", "Recordatorio eliminado: $id")
                 } else {
                     _errorMessage.value = "Error al eliminar de Firebase"
+                }
+                } else {
+                    _errorMessage.value = "Recordatorio no encontrado"
                 }
             } catch (e: Exception) {
                 _errorMessage.value = "Error al eliminar: ${e.message}"

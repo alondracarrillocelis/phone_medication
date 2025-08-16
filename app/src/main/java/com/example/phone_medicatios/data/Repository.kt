@@ -4,19 +4,17 @@ import kotlinx.coroutines.flow.Flow
 import java.util.*
 
 interface Repository {
-    // Medicamentos - Métodos de flujo en tiempo real
-    fun getMedicationsFlow(): Flow<List<Medication>>
+    // Medicamentos
     suspend fun getMedications(): List<Medication>
     suspend fun addMedication(medication: Medication): String?
     suspend fun updateMedication(medication: Medication): Boolean
     suspend fun deleteMedication(medicationId: String): Boolean
     
-    // Recordatorios - Métodos de flujo en tiempo real
-    fun getRemindersFlow(): Flow<List<Reminder>>
+    // Recordatorios
     suspend fun getReminders(): List<Reminder>
     suspend fun addReminder(reminder: Reminder): String?
     suspend fun updateReminder(reminder: Reminder): Boolean
-    suspend fun deleteReminder(reminderId: String): Boolean
+    suspend fun deleteReminder(reminder: Reminder): Boolean
     
     // Horarios
     suspend fun getTodaySchedules(): List<TodaySchedule>
